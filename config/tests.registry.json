@@ -1,0 +1,65 @@
+{
+  "defaults": {
+    "tolerancePercent": 5.0,
+    "outputSubfolder": "System_208V_Accuracy_Reports",
+    "timestampMatchSeconds": 15
+  },
+  "tests": [
+    {
+      "id": "system_208v",
+      "title": "System 208V",
+      "description": "Compare System 208V Acuvim meters with one Yokogawa Auto capture.",
+      "ready": true,
+      "setup": {
+        "preferredSheet": "Sheet1",
+        "headerText": "System_208",
+        "loadPercentColumn": 0,
+        "targetAmpColumn": 1,
+        "rowStart": 4,
+        "rowEnd": 16
+      },
+      "segmentationAutoGroup": "sigmb_456",
+      "meters": [
+        {
+          "id": "iir",
+          "label": "IIR / Meter 10",
+          "filePattern": "*IIR*Real-Time*.csv",
+          "autoGroup": "sigmb_456"
+        },
+        {
+          "id": "iiw",
+          "label": "IIW / Meter 9",
+          "filePattern": "*IIW*Real-Time*.csv",
+          "autoGroup": "sigma_123"
+        }
+      ]
+    },
+    {
+      "id": "system_415v",
+      "title": "System 415V",
+      "description": "Reserved for a future processing release.",
+      "ready": false,
+      "setup": null,
+      "segmentationAutoGroup": null,
+      "meters": []
+    },
+    {
+      "id": "subfeed_208v",
+      "title": "Sub-feed 208V",
+      "description": "Reserved for a future processing release.",
+      "ready": false,
+      "setup": null,
+      "segmentationAutoGroup": null,
+      "meters": []
+    },
+    {
+      "id": "subfeed_415v",
+      "title": "Sub-feed 415V",
+      "description": "Reserved for a future processing release.",
+      "ready": false,
+      "setup": null,
+      "segmentationAutoGroup": null,
+      "meters": []
+    }
+  ]
+}

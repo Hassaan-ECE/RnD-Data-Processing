@@ -32,6 +32,7 @@
     "targets": ["nsis"],
     "publisher": "Syed Hassaan Shah",
     "icon": ["icons/icon.ico"],
+    "resources": ["../config/*.json"],
     "windows": {
       "nsis": {
         "installMode": "currentUser"

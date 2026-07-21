@@ -1,6 +1,8 @@
 pub mod commands;
+pub mod config;
 pub mod error;
 
+#[cfg(feature = "desktop")]
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
