@@ -4,9 +4,15 @@ Windows desktop app for R&D lab **accuracy data processing**: compare on-system 
 
 **Repository:** https://github.com/Hassaan-ECE/RnD-Data-Processing  
 
-## Status
+## Development
 
-**Design approved.** Ready for implementation (scaffold + System 208V pipeline).
+```powershell
+cd "C:\Projects\Active\RnD Data Processing"
+bun install
+bun run dev:frontend
+```
+
+The desktop entry point will be `bun run desktop` once the Tauri backend is initialized.
 
 ## Docs
 
