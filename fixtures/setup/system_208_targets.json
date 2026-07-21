@@ -1,0 +1,15 @@
+[
+  { "loadPercent": 100.0, "targetAmps": 1395.0 },
+  { "loadPercent": 90.0, "targetAmps": 1255.5 },
+  { "loadPercent": 80.0, "targetAmps": 1116.0 },
+  { "loadPercent": 75.0, "targetAmps": 1046.25 },
+  { "loadPercent": 70.0, "targetAmps": 976.5 },
+  { "loadPercent": 60.0, "targetAmps": 837.0 },
+  { "loadPercent": 50.0, "targetAmps": 697.5 },
+  { "loadPercent": 40.0, "targetAmps": 558.0 },
+  { "loadPercent": 35.0, "targetAmps": 488.25 },
+  { "loadPercent": 30.0, "targetAmps": 418.5 },
+  { "loadPercent": 25.0, "targetAmps": 348.75 },
+  { "loadPercent": 20.0, "targetAmps": 279.0 },
+  { "loadPercent": 10.0, "targetAmps": 139.5 }
+]
