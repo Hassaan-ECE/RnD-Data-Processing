@@ -74,6 +74,20 @@ impl MeasurementTable {
     }
 }
 
+#[derive(Clone, Debug)]
+pub struct RawAutoData {
+    source_path: PathBuf,
+    lookup: HashMap<String, usize>,
+    rows: Vec<RawAutoRow>,
+    ignored_source_columns: usize,
+}
+
+#[derive(Clone, Debug)]
+struct RawAutoRow {
+    source_row: usize,
+    record: StringRecord,
+}
+
 pub fn preprocess_acuvim(path: impl AsRef<Path>) -> AppResult<MeasurementTable> {
     let path = path.as_ref();
     let mut reader = ReaderBuilder::new()
@@ -126,6 +140,11 @@ pub fn preprocess_auto(
     path: impl AsRef<Path>,
     group: &AutoChannelGroup,
 ) -> AppResult<MeasurementTable> {
+    let raw = read_auto_csv(path)?;
+    preprocess_auto_data(&raw, group)
+}
+
+pub fn read_auto_csv(path: impl AsRef<Path>) -> AppResult<RawAutoData> {
     let path = path.as_ref();
     let mut reader = ReaderBuilder::new()
         .flexible(true)
@@ -137,18 +156,48 @@ pub fn preprocess_auto(
         .filter(|header| is_junk_header(header))
         .count();
     let lookup = header_lookup(&headers);
-    let required = required_auto_columns(group);
-    for column in &required {
-        required_column(&lookup, column, path)?;
-    }
-
+    required_column(&lookup, "Date", path)?;
+    required_column(&lookup, "Time", path)?;
     let mut rows = Vec::new();
     for (record_index, record) in reader.records().enumerate() {
         let record = record?;
         if should_skip_record(&record) {
             continue;
         }
-        let source_row = record_index + 2;
+        rows.push(RawAutoRow {
+            source_row: record_index + 2,
+            record,
+        });
+    }
+    if rows.is_empty() {
+        return Err(AppError::Message(format!(
+            "No usable data rows were found in {}",
+            path.display()
+        )));
+    }
+    Ok(RawAutoData {
+        source_path: path.to_path_buf(),
+        lookup,
+        rows,
+        ignored_source_columns,
+    })
+}
+
+pub fn preprocess_auto_data(
+    raw: &RawAutoData,
+    group: &AutoChannelGroup,
+) -> AppResult<MeasurementTable> {
+    let path = &raw.source_path;
+    let lookup = &raw.lookup;
+    let required = required_auto_columns(group);
+    for column in &required {
+        required_column(&lookup, column, path)?;
+    }
+
+    let mut rows = Vec::new();
+    for raw_row in &raw.rows {
+        let record = &raw_row.record;
+        let source_row = raw_row.source_row;
         let date = raw_value(&record, &lookup, "Date");
         let time = raw_value(&record, &lookup, "Time");
         let parsed_timestamp = parse_auto_timestamp(date, time).ok_or_else(|| {
@@ -285,7 +334,7 @@ pub fn preprocess_auto(
         });
     }
 
-    validate_table(path, rows, ignored_source_columns)
+    validate_table(path, rows, raw.ignored_source_columns)
 }
 
 fn validate_table(

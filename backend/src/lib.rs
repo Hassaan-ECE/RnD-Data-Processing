@@ -9,7 +9,13 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_updater::Builder::new().build())
-        .invoke_handler(tauri::generate_handler![commands::get_app_version])
+        .invoke_handler(tauri::generate_handler![
+            commands::get_app_version,
+            commands::scan_data_folder,
+            commands::load_setup_file,
+            commands::run_system_208v_report,
+            commands::open_path
+        ])
         .run(tauri::generate_context!())
         .expect("error while running RnD Data Processing");
 }
