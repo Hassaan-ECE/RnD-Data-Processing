@@ -6,11 +6,12 @@ Windows desktop app for R&D lab **accuracy data processing**: compare on-system 
 
 ## Status
 
-Design complete (pending final user review of the spec). Implementation not started.
+**Design approved.** Ready for implementation (scaffold + System 208V pipeline).
 
 ## Docs
 
 - [Design spec](docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md)
+- [Implementation plan](docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md) — task list for implementor agents
 - [Requirements notes](docs/REQUIREMENTS_NOTES.md) (discussion log)
 
 ## Planned stack

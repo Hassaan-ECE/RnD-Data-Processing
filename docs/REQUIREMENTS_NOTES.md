@@ -323,6 +323,7 @@ Exact project layout will be defined in a formal design doc after decisions are 
 18. **Batch + parallel:** not a live ATS watcher (unlike PDU). Full folder is offline data → preprocess/segment/reduce can run in **parallel** (e.g. per meter, per load band) in Rust, then **write each Excel once** (or few writes) after results are ready — no incremental cell patching during a live run.
 19. GitHub repo created: **Hassaan-ECE/RnD-Data-Processing**. Updater endpoint will use `releases/latest/download/latest.json`.
 20. Design §1–§4 approved; formal design written 2026-07-21.
+21. Implementation plan: `docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md` for implementor agent.
 
 ---
 
