@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+frontend/node_modules/
+
+# Build
+frontend/dist/
+backend/target/
+dist/
+
+# Logs / OS
+*.log
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Env / secrets
+.env
+.env.*
+*.pem
+*.key
+!.gitkeep
+
+# Release artifacts (never commit installers/signatures)
+**/*-setup.exe
+**/*.exe.sig
+**/latest.json
+**/SHA256SUMS.txt
+backend/target/release/bundle/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# Local fixtures that may contain large lab dumps (keep small fixtures only)
+# Data/
