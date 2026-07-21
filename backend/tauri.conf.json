@@ -1,0 +1,52 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "RnD Data Processing",
+  "version": "0.1.0",
+  "identifier": "com.te.lab.rnd-data-processing",
+  "build": {
+    "beforeDevCommand": "bun --bun vite --config frontend/vite.config.ts",
+    "devUrl": "http://127.0.0.1:5173",
+    "beforeBuildCommand": "bun --bun tsc -b && bun --bun vite build --config frontend/vite.config.ts",
+    "frontendDist": "../frontend/dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "RnD Data Processing",
+        "width": 1180,
+        "height": 780,
+        "minWidth": 900,
+        "minHeight": 640,
+        "center": true,
+        "resizable": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: http://asset.localhost data: blob:; font-src 'self' data:; connect-src 'self' ipc: http://ipc.localhost; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "createUpdaterArtifacts": true,
+    "targets": ["nsis"],
+    "publisher": "Syed Hassaan Shah",
+    "icon": ["icons/icon.ico"],
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1NkRBNzhEOUQ3RUU0MDQKUldRRTVINmRqYWR0bFI1dnR5VHJKV1gzNjJEU09FRzNLR21QZk0zRVZEMGVmRzNFN0xxOVRTVm8K",
+      "endpoints": [
+        "https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "quiet"
+      }
+    }
+  }
+}
