@@ -1,6 +1,7 @@
 pub mod commands;
 pub mod config;
 pub mod error;
+pub mod processing;
 
 #[cfg(feature = "desktop")]
 pub fn run() {

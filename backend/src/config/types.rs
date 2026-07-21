@@ -53,6 +53,15 @@ pub struct AutoChannelGroup {
     pub label: String,
     pub phases: [String; 3],
     pub total: String,
+    #[serde(rename = "voltageMode")]
+    pub voltage_mode: VoltageMode,
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum VoltageMode {
+    LineToNeutral,
+    LineToLine,
 }
 
 pub type AutoChannelGroups = BTreeMap<String, AutoChannelGroup>;

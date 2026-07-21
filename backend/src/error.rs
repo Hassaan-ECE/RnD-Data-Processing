@@ -9,6 +9,8 @@ pub enum AppError {
     Io(#[from] std::io::Error),
     #[error("Configuration error: {0}")]
     Json(#[from] serde_json::Error),
+    #[error("CSV error: {0}")]
+    Csv(#[from] csv::Error),
 }
 
 impl Serialize for AppError {

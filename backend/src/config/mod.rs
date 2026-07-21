@@ -7,7 +7,7 @@ use crate::error::{AppError, AppResult};
 
 pub use types::{
     AppConfig, AutoChannelGroup, AutoChannelGroups, MeterDefinition, RegistryDefaults,
-    SetupDefinition, TestDefinition, TestRegistry,
+    SetupDefinition, TestDefinition, TestRegistry, VoltageMode,
 };
 
 const EMBEDDED_REGISTRY: &str = include_str!("../../../config/tests.registry.json");
@@ -46,7 +46,10 @@ fn validate_config(config: &AppConfig) -> AppResult<()> {
 
     for test in config.registry.tests.iter().filter(|test| test.ready) {
         let setup = test.setup.as_ref().ok_or_else(|| {
-            AppError::Message(format!("Ready test '{}' is missing setup configuration", test.id))
+            AppError::Message(format!(
+                "Ready test '{}' is missing setup configuration",
+                test.id
+            ))
         })?;
         if setup.row_start == 0 || setup.row_end < setup.row_start {
             return Err(AppError::Message(format!(
