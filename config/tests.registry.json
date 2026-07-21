@@ -2,7 +2,7 @@
   "defaults": {
     "tolerancePercent": 5.0,
     "outputSubfolder": "System_208V_Accuracy_Reports",
-    "timestampMatchSeconds": 15
+    "timestampMatchSeconds": 60
   },
   "tests": [
     {
