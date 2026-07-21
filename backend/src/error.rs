@@ -11,6 +11,8 @@ pub enum AppError {
     Json(#[from] serde_json::Error),
     #[error("CSV error: {0}")]
     Csv(#[from] csv::Error),
+    #[error("Excel write error: {0}")]
+    Excel(#[from] rust_xlsxwriter::XlsxError),
 }
 
 impl Serialize for AppError {
