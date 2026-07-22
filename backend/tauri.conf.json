@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "Data Processing v0.1.0",
-        "width": 520,
-        "height": 560,
-        "minWidth": 460,
-        "minHeight": 480,
+        "width": 900,
+        "height": 740,
+        "minWidth": 520,
+        "minHeight": 560,
         "center": true,
         "resizable": true
       }
