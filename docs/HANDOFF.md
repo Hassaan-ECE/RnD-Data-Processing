@@ -8,6 +8,7 @@
 - Delivery branch: `main`
 - Validated release/documentation commit: `904842e`
 - Push destination: `origin/main`
+- Push verified: `origin/main` contains handoff metadata commit `b3fd75a`
 - Implementation is complete for the System 208V v0.1 path.
 
 ## Run from PowerShell
@@ -83,7 +84,9 @@ cargo run --manifest-path backend/Cargo.toml --bin rnd-pipeline -- --setup "C:\P
 - Selected `rust_xlsxwriter 0.96` because it is current and compatible with the available dependency graph.
 - Used simple readable workbook styling rather than attempting unsupported perfect color-gradient parity.
 
-## Validation performed July 21, 2026
+## Validation performed July 22, 2026
+
+Captured Windows host-local timestamps display the evening of July 21, 2026.
 
 All of these passed:
 
