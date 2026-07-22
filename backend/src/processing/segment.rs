@@ -188,35 +188,36 @@ pub fn map_reference_bands_to_table(
     Ok(mapped)
 }
 
-/// Python-compatible trim / fixed-window selection over ordered band indices.
-pub fn select_used_indices(indices: &[usize], reduce: &ReduceOptions) -> AppResult<Vec<usize>> {
+/// Python-style trim / fixed-window selection over ordered band indices.
+///
+/// If the requested window/trim cannot be fully satisfied, **still use the
+/// available data** (best-effort) so the report can finish for other bands.
+pub fn select_used_indices(indices: &[usize], reduce: &ReduceOptions) -> Vec<usize> {
     let n = indices.len();
+    if n == 0 {
+        return Vec::new();
+    }
     match reduce.mode {
         ReduceMode::Trim => {
-            // Skip start/end, require at least 1 remaining point (points_param=1 in Python).
-            let start = reduce.skip_start;
+            let start = reduce.skip_start.min(n);
             let end = n.saturating_sub(reduce.skip_end);
             if start < end {
-                Ok(indices[start..end].to_vec())
+                indices[start..end].to_vec()
             } else {
-                Err(AppError::Message(format!(
-                    "Trim left no points (n={n}, skip_start={}, skip_end={})",
-                    reduce.skip_start, reduce.skip_end
-                )))
+                // Skips ate the whole band — still average what we have.
+                indices.to_vec()
             }
         }
         ReduceMode::Window => {
             let end = n.saturating_sub(reduce.skip_end);
-            if end >= reduce.window_size && reduce.window_size > 0 {
-                let start = end - reduce.window_size;
-                Ok(indices[start..end].to_vec())
-            } else {
-                let available = end.min(n);
-                Err(AppError::Message(format!(
-                    "Window needs {} pts before skip-end, available {available} (n={n}, skip_end={})",
-                    reduce.window_size, reduce.skip_end
-                )))
+            if end == 0 {
+                // skip_end removed everything — use full band.
+                return indices.to_vec();
             }
+            // Prefer requested window size; if fewer points remain, use all of them.
+            let take = reduce.window_size.max(1).min(end);
+            let start = end - take;
+            indices[start..end].to_vec()
         }
     }
 }
@@ -231,17 +232,10 @@ fn build_reference_bands(
     let mut bands = Vec::with_capacity(targets.len());
     for (target, all_indices) in targets.iter().cloned().zip(assignments) {
         if all_indices.is_empty() {
-            return Err(AppError::Message(format!(
-                "No Auto rows fell within ±{tolerance_percent}% of {}% / {} A",
-                target.load_percent, target.target_amps
-            )));
+            // Missing load points are skipped so other bands still generate.
+            continue;
         }
-        let used_indices = select_used_indices(&all_indices, reduce).map_err(|error| {
-            AppError::Message(format!(
-                "{} for {}% / {} A",
-                error, target.load_percent, target.target_amps
-            ))
-        })?;
+        let used_indices = select_used_indices(&all_indices, reduce);
         bands.push(BandRows {
             target,
             all_timestamps: timestamps_for_indices(reference, &all_indices),
@@ -250,6 +244,11 @@ fn build_reference_bands(
             used_indices,
             reduce_label: reduce.mode_label().to_owned(),
         });
+    }
+    if bands.is_empty() {
+        return Err(AppError::Message(format!(
+            "No Auto rows fell within ±{tolerance_percent}% of any setup load target"
+        )));
     }
     Ok(bands)
 }
@@ -263,18 +262,18 @@ fn build_matched_bands(
 ) -> AppResult<Vec<BandRows>> {
     let mut bands = Vec::with_capacity(reference_bands.len());
     for (reference_band, all_indices) in reference_bands.iter().zip(assignments) {
-        if all_indices.is_empty() {
+        // Keep one band per reference band so Auto/Meter zip stays aligned.
+        let used_indices = if all_indices.is_empty() {
+            Vec::new()
+        } else {
+            select_used_indices(&all_indices, reduce)
+        };
+        if all_indices.is_empty() || used_indices.is_empty() {
             return Err(AppError::Message(format!(
                 "No {source_name} rows matched the Auto timestamps for {}% / {} A",
                 reference_band.target.load_percent, reference_band.target.target_amps
             )));
         }
-        let used_indices = select_used_indices(&all_indices, reduce).map_err(|error| {
-            AppError::Message(format!(
-                "{error} for {source_name} {}% / {} A",
-                reference_band.target.load_percent, reference_band.target.target_amps
-            ))
-        })?;
         bands.push(BandRows {
             target: reference_band.target.clone(),
             all_timestamps: timestamps_for_indices(table, &all_indices),
@@ -319,8 +318,7 @@ mod tests {
                 skip_end: 2,
                 window_size: 20,
             },
-        )
-        .expect("trim should succeed");
+        );
         assert_eq!(used, (2..8).collect::<Vec<_>>());
     }
 
@@ -335,9 +333,24 @@ mod tests {
                 skip_end: 2,
                 window_size: 4,
             },
-        )
-        .expect("window should succeed");
+        );
         // end = 8, start = 4 → indices 4..8
         assert_eq!(used, vec![4, 5, 6, 7]);
+    }
+
+    #[test]
+    fn window_uses_available_points_when_short() {
+        // n=15, skip_end=5 → end=10; window 15 → take all 10 remaining
+        let indices = (0..15).collect::<Vec<_>>();
+        let used = select_used_indices(
+            &indices,
+            &ReduceOptions {
+                mode: ReduceMode::Window,
+                skip_start: 0,
+                skip_end: 5,
+                window_size: 15,
+            },
+        );
+        assert_eq!(used, (0..10).collect::<Vec<_>>());
     }
 }

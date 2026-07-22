@@ -113,6 +113,6 @@ fn error_formula_and_empty_band_failures_are_explicit() {
         5.0,
         &ReduceOptions::default(),
     )
-    .expect_err("empty band should fail");
+    .expect_err("empty band set should fail");
     assert!(error.to_string().contains("No Auto rows fell within"));
 }
