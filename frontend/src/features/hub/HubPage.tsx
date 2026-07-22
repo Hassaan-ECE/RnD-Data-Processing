@@ -73,11 +73,7 @@ export function HubPage({
 
   return (
     <div className="page-stack hub-page">
-      <div className="hub-heading">
-        <div className="hub-heading-copy">
-          <h1 className="page-title">Tests</h1>
-          <p className="page-sub">Select a setup workbook, then open a test.</p>
-        </div>
+      <div className="hub-heading hub-heading-actions-only">
         <div className="heading-side heading-side-end">{updateControl}</div>
       </div>
 

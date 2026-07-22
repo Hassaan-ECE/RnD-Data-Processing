@@ -338,21 +338,8 @@ svg {
   gap: 0.65rem;
 }
 
-.hub-heading-copy {
-  min-width: 0;
-  flex: 1;
-}
-
-.page-title {
-  margin: 0 0 0.2rem;
-  font-size: 1.2rem;
-  font-weight: 700;
-}
-
-.page-sub {
-  margin: 0;
-  color: #9a9a96;
-  font-size: 0.92rem;
+.hub-heading-actions-only {
+  justify-content: flex-end;
 }
 
 .test-list {
