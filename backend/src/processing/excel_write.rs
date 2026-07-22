@@ -23,10 +23,6 @@ pub fn write_report_workbook(
         .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xD9EAF2))
         .set_border(FormatBorder::Thin);
-    let plain_center = Format::new().set_align(FormatAlign::Center);
-    let plain_number = Format::new()
-        .set_align(FormatAlign::Center)
-        .set_num_format("0.000");
     let used_text = Format::new()
         .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xE2EFDA));
@@ -51,6 +47,18 @@ pub fn write_report_workbook(
         .set_align(FormatAlign::Center)
         .set_num_format("0.000")
         .set_background_color(Color::RGB(0xFFFF00));
+    let unmatched_banner = Format::new()
+        .set_bold()
+        .set_align(FormatAlign::Center)
+        .set_text_wrap()
+        .set_background_color(Color::RGB(0xFF6666));
+    let unmatched_text = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xFF9999));
+    let unmatched_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xFF9999));
     let section_format = Format::new()
         .set_bold()
         .set_align(FormatAlign::Center)
@@ -95,14 +103,15 @@ pub fn write_report_workbook(
             &report.meter_table,
             &report.meter_bands,
             &header_format,
-            &plain_center,
-            &plain_number,
             &used_text,
             &used_number,
             &skipped_text,
             &skipped_number,
             &average_text,
             &average_number,
+            &unmatched_banner,
+            &unmatched_text,
+            &unmatched_number,
         )?;
     }
     {
@@ -113,14 +122,15 @@ pub fn write_report_workbook(
             &report.auto_table,
             &report.auto_bands,
             &header_format,
-            &plain_center,
-            &plain_number,
             &used_text,
             &used_number,
             &skipped_text,
             &skipped_number,
             &average_text,
             &average_number,
+            &unmatched_banner,
+            &unmatched_text,
+            &unmatched_number,
         )?;
     }
     {
@@ -149,14 +159,15 @@ fn write_detail_sheet(
     table: &MeasurementTable,
     bands: &[BandRows],
     header_format: &Format,
-    plain_center: &Format,
-    plain_number: &Format,
     used_text: &Format,
     used_number: &Format,
     skipped_text: &Format,
     skipped_number: &Format,
     average_text: &Format,
     average_number: &Format,
+    unmatched_banner: &Format,
+    unmatched_text: &Format,
+    unmatched_number: &Format,
 ) -> AppResult<()> {
     worksheet.set_name(name)?;
     worksheet.write_string_with_format(0, 0, "Time", header_format)?;
@@ -240,14 +251,39 @@ fn write_detail_sheet(
         .collect::<Vec<_>>();
     if !leftovers.is_empty() {
         leftovers.sort_unstable();
+        // Blank before unmatched section
+        excel_row += 1;
+
+        let last_column = NUMERIC_HEADERS.len() as u16;
+        let banner = format!(
+            "Unmatched rows — these values did not match any load target\n({} row{})",
+            leftovers.len(),
+            if leftovers.len() == 1 { "" } else { "s" }
+        );
+        note_width(
+            &mut col_widths,
+            0,
+            "Unmatched rows — these values did not match any load target",
+        );
+        worksheet.merge_range(
+            excel_row,
+            0,
+            excel_row,
+            last_column,
+            &banner,
+            unmatched_banner,
+        )?;
+        worksheet.set_row_height(excel_row, 32.0)?;
+        excel_row += 1;
+
         for index in leftovers {
             let row = &table.rows[index];
             write_data_row(
                 worksheet,
                 excel_row,
                 row,
-                plain_center,
-                plain_number,
+                unmatched_text,
+                unmatched_number,
                 &mut col_widths,
             )?;
             excel_row += 1;
