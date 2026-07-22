@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>System 208V — Math formulas (typeset)</title>
+  <!-- KaTeX (CDN). Needs network once to load fonts/scripts. -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/contrib/auto-render.min.js"
+          onload="renderMathInElement(document.body, {
+            delimiters: [
+              {left: '$$', right: '$$', display: true},
+              {left: '\\[', right: '\\]', display: true},
+              {left: '$', right: '$', display: false},
+              {left: '\\(', right: '\\)', display: false}
+            ],
+            throwOnError: false
+          });"></script>
+  <style>
+    :root {
+      --ink: #1a1a1a;
+      --muted: #5a5a5a;
+      --line: #d8e0ea;
+      --bg: #f6f8fb;
+      --card: #ffffff;
+      --brand: #1f4e79;
+      --brand2: #2e75b6;
+      --eq-bg: #f0f6fc;
+      --note: #fff8e7;
+      --note-border: #e6a817;
+      --ok: #1b7a3d;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+      font-size: 16px;
+    }
+    header {
+      background: linear-gradient(135deg, var(--brand), var(--brand2));
+      color: #fff;
+      padding: 2rem 1.5rem 1.5rem;
+    }
+    header h1 { margin: 0 0 0.35rem; font-size: 1.65rem; font-weight: 650; }
+    header p { margin: 0; opacity: 0.92; max-width: 52rem; }
+    .wrap { max-width: 52rem; margin: 0 auto; padding: 1.25rem 1.25rem 3rem; }
+    nav.toc {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1rem 1.25rem;
+      margin: 1.25rem 0 1.5rem;
+    }
+    nav.toc h2 { margin: 0 0 0.5rem; font-size: 0.95rem; color: var(--brand); text-transform: uppercase; letter-spacing: 0.04em; }
+    nav.toc ol { margin: 0; padding-left: 1.25rem; }
+    nav.toc a { color: var(--brand2); text-decoration: none; }
+    nav.toc a:hover { text-decoration: underline; }
+    section {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 1.25rem 1.35rem 1.4rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 2px rgba(20,40,80,0.04);
+    }
+    h2 {
+      margin: 0 0 0.75rem;
+      font-size: 1.2rem;
+      color: var(--brand);
+      border-bottom: 2px solid var(--line);
+      padding-bottom: 0.4rem;
+    }
+    h3 { margin: 1.1rem 0 0.45rem; font-size: 1.02rem; color: #2c3e50; }
+    p, li { color: var(--ink); }
+    .muted { color: var(--muted); font-size: 0.92rem; }
+    .eq {
+      background: var(--eq-bg);
+      border-left: 4px solid var(--brand2);
+      border-radius: 0 8px 8px 0;
+      padding: 0.85rem 1rem;
+      margin: 0.75rem 0 1rem;
+      overflow-x: auto;
+    }
+    .eq .katex-display { margin: 0.35em 0; }
+    .note {
+      background: var(--note);
+      border-left: 4px solid var(--note-border);
+      border-radius: 0 8px 8px 0;
+      padding: 0.75rem 1rem;
+      margin: 0.75rem 0;
+      font-size: 0.95rem;
+    }
+    .note strong { color: #8a6d00; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.92rem;
+      margin: 0.6rem 0 1rem;
+    }
+    th, td {
+      border: 1px solid var(--line);
+      padding: 0.45rem 0.55rem;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #1f4e79; color: #fff; font-weight: 600; }
+    tr:nth-child(even) td { background: #f7fafc; }
+    code {
+      font-family: Consolas, "Cascadia Mono", ui-monospace, monospace;
+      font-size: 0.88em;
+      background: #eef2f7;
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+    .badge {
+      display: inline-block;
+      background: #e8f5ee;
+      color: var(--ok);
+      border: 1px solid #b7e0c5;
+      border-radius: 999px;
+      padding: 0.15rem 0.55rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      margin-bottom: 0.75rem;
+    }
+    footer {
+      text-align: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+      padding: 1rem 0 2rem;
+    }
+    @media print {
+      body { background: #fff; }
+      header { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+      section { break-inside: avoid; box-shadow: none; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap" style="padding-top:0;padding-bottom:0">
+      <h1>System 208V — Math formulas</h1>
+      <p>
+        Typeset equations for R&amp;D review (KaTeX). Companion files include the full Word mapping doc
+        (<code>System_208V_Column_Mapping_and_Math.docx</code>) and the native-equation Word version
+        (<code>System_208V_Math_Formulas.docx</code>).
+        Source of truth remains the Rust pipeline under <code>backend/src/processing/</code>.
+      </p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <div class="badge">HTML + KaTeX · open in any browser</div>
+
+    <nav class="toc">
+      <h2>Contents</h2>
+      <ol>
+        <li><a href="#helpers">Shared math helpers</a></li>
+        <li><a href="#voltages">Auto voltage modes</a></li>
+        <li><a href="#error">Error % and phase Δ</a></li>
+        <li><a href="#banding">Load banding &amp; averaging</a></li>
+        <li><a href="#gradient">Comparison gradient</a></li>
+        <li><a href="#formats">Which format to use</a></li>
+      </ol>
+    </nav>
+
+    <section id="helpers">
+      <h2>1. Shared math helpers</h2>
+      <p class="muted">Constants: $\sqrt{3} = 1.7320508075688772$, near-zero $\varepsilon = 10^{-9}$.</p>
+
+      <h3>Three-phase average</h3>
+      <div class="eq">$$
+        \operatorname{avg}(x_A, x_B, x_C) = \frac{x_A + x_B + x_C}{3}
+      $$</div>
+      <p>If any phase is missing → blank. Also used for Auto total THD percentages (reporting convention only).</p>
+
+      <h3>Unit scale (Auto power / reactive)</h3>
+      <div class="eq">$$
+        P_{\mathrm{kW}} = \frac{P_{\mathrm{W}}}{1000},\quad
+        S_{\mathrm{kVA}} = \frac{S_{\mathrm{VA}}}{1000},\quad
+        Q_{\mathrm{kvar}} = \frac{Q_{\mathrm{var}}}{1000}
+      $$</div>
+
+      <h3>Reactive power (Auto)</h3>
+      <p><strong>Primary:</strong> instrument <code>Q-*</code> (signed), converted var → kvar.</p>
+      <div class="eq">$$
+        Q_{\mathrm{kvar}} = \frac{Q_{\mathrm{var}}}{1000}
+      $$</div>
+      <p><strong>Fallback</strong> only if <code>Q-*</code> is blank/NAN and the triangle is valid:</p>
+      <div class="eq">$$
+        Q_{\mathrm{fallback}} = \sqrt{S^2 - P^2}
+        \quad\text{when } S^2 \ge P^2
+      $$</div>
+      <div class="note">
+        <strong>Invalid triangle:</strong> if $|P| &gt; |S|$ beyond a tiny rounding tolerance, fallback is
+        <strong>N/A</strong> — not $\sqrt{|S^2-P^2|}$.
+      </div>
+
+      <h3>Fallback total PF only</h3>
+      <div class="eq">$$
+        \mathrm{PF}_{\mathrm{total}} =
+        \begin{cases}
+        \mathrm{PF}_{\mathrm{SIGMB/SIGMA}} & \text{if present}\\[0.35em]
+        P/S & \text{if PF blank and } |S| &gt; \varepsilon
+        \end{cases}
+      $$</div>
+      <p>Phase PFA/PFB/PFC use instrument fields only (no $P/S$ fallback).</p>
+
+      <h3>Neutral proxy &amp; unbalance (Auto)</h3>
+      <div class="eq">$$
+        I_N = \max(I_A,I_B,I_C) - \min(I_A,I_B,I_C)
+      $$</div>
+      <div class="eq">$$
+        U_{\mathrm{unbl}}(\%) =
+        \frac{\max_i |x_i - \bar{x}|}{|\bar{x}|}\times 100,\quad
+        \bar{x}=\operatorname{avg}(x_A,x_B,x_C)
+      $$</div>
+
+      <h3>Signed angle wrap</h3>
+      <div class="eq">$$
+        \operatorname{wrap}(\theta)\in(-180^\circ,180^\circ]
+      $$</div>
+
+      <h3>Circular Δdeg</h3>
+      <div class="eq">$$
+        \Delta =
+        \operatorname{wrap}\!\big(
+          \operatorname{wrap}(\theta_{\mathrm{meter}})
+          - \operatorname{wrap}(\theta_{\mathrm{auto}})
+        \big)
+      $$</div>
+    </section>
+
+    <section id="voltages">
+      <h2>2. Auto voltage modes</h2>
+
+      <h3>IIR — line-to-neutral (ch 4/5/6)</h3>
+      <div class="eq">$$
+        \begin{aligned}
+        U_A &= U_{\mathrm{ac4}},\quad
+        U_B = U_{\mathrm{ac5}},\quad
+        U_C = U_{\mathrm{ac6}} \\
+        U_{\mathrm{LN}} &= \operatorname{avg}(U_{\mathrm{ac4}},U_{\mathrm{ac5}},U_{\mathrm{ac6}}) \\
+        U_{\mathrm{AB}} &= U_{\mathrm{ac4}}\sqrt{3},\quad
+        U_{\mathrm{BC}} = U_{\mathrm{ac5}}\sqrt{3},\quad
+        U_{\mathrm{CA}} = U_{\mathrm{ac6}}\sqrt{3} \\
+        U_{\mathrm{LL}} &= U_{\mathrm{LN}}\sqrt{3}
+        \end{aligned}
+      $$</div>
+      <div class="note">
+        <strong>Assumption:</strong> ideal balanced $U_{LL}=\sqrt{3}\,U_{LN}$ so L–L columns can sit next to Acuvim L–L fields.
+      </div>
+
+      <h3>IIW — line-to-line (ch 1/2/3)</h3>
+      <div class="eq">$$
+        \begin{aligned}
+        U_A,U_B,U_C,U_{\mathrm{LN}} &= \text{N/A} \\
+        U_{\mathrm{AB}} &= U_{\mathrm{ac1}},\quad
+        U_{\mathrm{BC}} = U_{\mathrm{ac2}},\quad
+        U_{\mathrm{CA}} = U_{\mathrm{ac3}} \\
+        U_{\mathrm{LL}} &= \operatorname{avg}(U_{\mathrm{ac1}},U_{\mathrm{ac2}},U_{\mathrm{ac3}})
+        \end{aligned}
+      $$</div>
+
+      <h3>Phase displacement (Acuvim → Auto Phi)</h3>
+      <div class="eq">$$
+        \begin{aligned}
+        \phi_{A,\mathrm{meter}} &= \operatorname{wrap}(IA_{UA}-UA) \\
+        \phi_{B,\mathrm{meter}} &= \operatorname{wrap}(IB_{UA}-UB) \\
+        \phi_{C,\mathrm{meter}} &= \operatorname{wrap}(IC_{UA}-UC) \\
+        \phi_{A,\mathrm{auto}} &= \operatorname{wrap}(-\mathrm{Phi}_4)
+        \quad\text{(similarly for B/C / IIW)}
+        \end{aligned}
+      $$</div>
+      <p>If a phase voltage is missing, the corresponding current displacement is cleared (N/A), not left as a raw UA-relative angle.</p>
+    </section>
+
+    <section id="error">
+      <h2>3. Error % and phase averages</h2>
+
+      <h3>Error percent</h3>
+      <div class="eq">$$
+        \mathrm{Error\%} =
+        \frac{\bar{x}_{\mathrm{meter}} - \bar{x}_{\mathrm{auto}}}{\bar{x}_{\mathrm{auto}}}\times 100
+      $$</div>
+      <ul>
+        <li>Either side missing → N/A</li>
+        <li>$|\bar{x}_{\mathrm{auto}}|\le 10^{-9}$ → N/A (never invent zero)</li>
+      </ul>
+      <div class="note">
+        <strong>Sign of Auto matters.</strong> When Auto is positive, positive Error% means the meter is algebraically higher.
+        When Auto is negative (e.g. signed Q): meter $=-9$, Auto $=-10$:
+        $$\mathrm{Error\%}=\frac{-9-(-10)}{-10}\times 100=-10\%$$
+        Always read the formula, not only “higher / lower” wording.
+      </div>
+
+      <h3>Band average — arithmetic (Real-Time / THD)</h3>
+      <div class="eq">$$
+        \bar{x}_c = \frac{1}{|U_c|}\sum_{i\in U_c} x_{i,c}
+      $$</div>
+
+      <h3>Band average — circular (Phase tables)</h3>
+      <div class="eq">$$
+        \bar\theta =
+        \operatorname{atan2}\!\left(
+          \frac{1}{n}\sum_i \sin\theta_i,\;
+          \frac{1}{n}\sum_i \cos\theta_i
+        \right)
+        \quad\text{then wrap to }(-180^\circ,180^\circ]
+      $$</div>
+      <p>Avoids the linear-mean bug: $179^\circ$ and $-179^\circ$ average near $\pm 180^\circ$, not $0^\circ$.</p>
+    </section>
+
+    <section id="banding">
+      <h2>4. Load banding</h2>
+      <p>Reference current: Auto SIGMB $I$ after transform. For each sample and target $I_k^{\mathrm{tgt}}$:</p>
+      <div class="eq">$$
+        e_k = \frac{\big|I - I_k^{\mathrm{tgt}}\big|}{I_k^{\mathrm{tgt}}}\times 100
+      $$</div>
+      <p>Keep targets with $e_k \le T$ (default $T=5\%$). Assign to the smallest $e_k$. Meter rows match by timestamp within 60&nbsp;s default.</p>
+
+      <h3>Auto total THD (reporting convention)</h3>
+      <div class="eq">$$
+        U_{\mathrm{THD,total}} = \operatorname{avg}(U_{\mathrm{THD},A},U_{\mathrm{THD},B},U_{\mathrm{THD},C})
+      $$</div>
+      <div class="note">
+        <strong>R&amp;D decision:</strong> this is the arithmetic mean of three phase THD <em>percentages</em>,
+        not a physically aggregated THD of a combined waveform unless fundamentals are equal or the instrument defines “total” the same way.
+      </div>
+    </section>
+
+    <section id="gradient">
+      <h2>5. Comparison cell gradient</h2>
+      <p>Error % and Δdeg rows use a continuous green → yellow → red fill on <strong>absolute</strong> magnitude (Excel-style palette).</p>
+      <table>
+        <thead>
+          <tr><th>Metric</th><th>Green</th><th>Yellow</th><th>Full red</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Error %</td><td>$|e|=0\%$</td><td>$|e|=0.5\%$</td><td>$|e|\ge 1\%$</td></tr>
+          <tr><td>Δdeg</td><td>$|\Delta|=0^\circ$</td><td>$|\Delta|=1.5^\circ$</td><td>$|\Delta|\ge 3^\circ$</td></tr>
+        </tbody>
+      </table>
+      <p class="muted">Map $|x|$ into $t\in[0,1]$ with mid/high stops, then RGB-lerp green→yellow→red. See <code>error_gradient_rgb</code> in <code>excel_write.rs</code>.</p>
+    </section>
+
+    <section id="formats">
+      <h2>6. Which document format to use</h2>
+      <table>
+        <thead>
+          <tr><th>Format</th><th>Best for</th><th>Equations</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>This HTML</strong></td>
+            <td>R&amp;D math review, screenshots, print-to-PDF from browser</td>
+            <td>Typeset (KaTeX)</td>
+          </tr>
+          <tr>
+            <td><code>System_208V_Math_Formulas.docx</code></td>
+            <td>Word review with editable, native equation objects</td>
+            <td>Native Word OMML (generated by Pandoc)</td>
+          </tr>
+          <tr>
+            <td><code>System_208V_Column_Mapping_and_Math.docx</code></td>
+            <td>Email / Teams / Word comments, full column maps</td>
+            <td>Plain monospace (always readable)</td>
+          </tr>
+          <tr>
+            <td><code>COLUMN_MAPPING.md</code></td>
+            <td>Git history, code review</td>
+            <td>LaTeX source; only some viewers render it</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <strong>Native Word equations:</strong> Pandoc converts the LaTeX in this HTML to OMML equation objects.
+        The generated Word file uses <code>System_208V_Column_Mapping_and_Math.docx</code> as its reference document
+        so the page setup and document styles remain aligned with the full mapping guide.
+      </div>
+      <p class="muted">Offline tip: first open needs CDN access for KaTeX; after cache, usually fine. Or File → Print → “Microsoft Print to PDF” for a portable PDF with equations already drawn.</p>
+    </section>
+
+    <footer>
+      RnD Data Processing · System 208V · formulas aligned with <code>backend/src/processing</code>
+    </footer>
+  </div>
+</body>
+</html>
