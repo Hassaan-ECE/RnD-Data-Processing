@@ -14,7 +14,7 @@ use crate::processing::excel_write::write_report_workbook;
 use crate::processing::preprocess::{
     preprocess_acuvim, preprocess_auto_data, read_auto_csv, MeasurementTable,
 };
-use crate::processing::segment::segment_reference_bands;
+use crate::processing::segment::{segment_reference_bands, ReduceOptions};
 use crate::processing::setup::load_setup_targets;
 use crate::processing::SYSTEM_208V_TEST_ID;
 
@@ -25,6 +25,8 @@ pub struct PipelineInput {
     pub setup_path: PathBuf,
     pub output_dir: Option<PathBuf>,
     pub tolerance_percent: f64,
+    #[serde(default)]
+    pub reduce: ReduceOptions,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -116,8 +118,13 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
             "Segmentation Auto group '{segmentation_group_id}' was not transformed"
         ))
     })?;
-    let reference_bands =
-        segment_reference_bands(segmentation_table, &setup.targets, input.tolerance_percent)?;
+    input.reduce.validate()?;
+    let reference_bands = segment_reference_bands(
+        segmentation_table,
+        &setup.targets,
+        input.tolerance_percent,
+        &input.reduce,
+    )?;
     let timestamp_match_seconds = config.registry.defaults.timestamp_match_seconds;
     let reports = discovery
         .meters
@@ -143,6 +150,7 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
                     &reference_bands,
                     timestamp_match_seconds,
                     input.tolerance_percent,
+                    &input.reduce,
                 )?;
                 let output_path = output_dir.join(format!(
                     "System_208V_{}_Accuracy_Report.xlsx",

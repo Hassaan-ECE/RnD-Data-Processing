@@ -28,11 +28,21 @@ export interface DiscoveryResult {
   warnings: string[];
 }
 
+export type ReduceMode = "trim" | "window";
+
+export interface ReduceOptions {
+  mode: ReduceMode;
+  skipStart: number;
+  skipEnd: number;
+  windowSize: number;
+}
+
 export interface PipelineInput {
   dataFolder: string;
   setupPath: string;
   outputDir: string | null;
   tolerancePercent: number;
+  reduce: ReduceOptions;
 }
 
 export interface ReportOutcome {

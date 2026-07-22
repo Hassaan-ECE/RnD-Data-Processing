@@ -2,6 +2,7 @@ use std::env;
 use std::path::PathBuf;
 
 use rnd_data_processing_lib::processing::pipeline::{run_system_208v, PipelineInput, ReportStatus};
+use rnd_data_processing_lib::processing::segment::{ReduceMode, ReduceOptions};
 
 fn main() {
     match parse_input().and_then(run_system_208v) {
@@ -31,6 +32,7 @@ fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppErr
     let mut data_folder = None;
     let mut output_dir = None;
     let mut tolerance_percent = 5.0;
+    let mut reduce = ReduceOptions::default();
     let mut arguments = env::args().skip(1).filter(|argument| argument != "--");
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
@@ -48,6 +50,31 @@ fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppErr
                         "Invalid tolerance '{value}'"
                     ))
                 })?;
+            }
+            "--mode" => {
+                let value = arguments.next().ok_or_else(|| {
+                    rnd_data_processing_lib::error::AppError::Message(
+                        "--mode requires trim|window".to_owned(),
+                    )
+                })?;
+                reduce.mode = match value.as_str() {
+                    "trim" => ReduceMode::Trim,
+                    "window" => ReduceMode::Window,
+                    other => {
+                        return Err(rnd_data_processing_lib::error::AppError::Message(format!(
+                            "Invalid mode '{other}' (use trim or window)"
+                        )));
+                    }
+                };
+            }
+            "--skip-start" => {
+                reduce.skip_start = parse_usize(&mut arguments, "--skip-start")?;
+            }
+            "--skip-end" => {
+                reduce.skip_end = parse_usize(&mut arguments, "--skip-end")?;
+            }
+            "--window-size" => {
+                reduce.window_size = parse_usize(&mut arguments, "--window-size")?;
             }
             "--help" | "-h" => {
                 print_usage();
@@ -74,11 +101,28 @@ fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppErr
         })?,
         output_dir,
         tolerance_percent,
+        reduce,
+    })
+}
+
+fn parse_usize(
+    arguments: &mut impl Iterator<Item = String>,
+    flag: &str,
+) -> Result<usize, rnd_data_processing_lib::error::AppError> {
+    let value = arguments.next().ok_or_else(|| {
+        rnd_data_processing_lib::error::AppError::Message(format!(
+            "{flag} requires a non-negative integer"
+        ))
+    })?;
+    value.parse::<usize>().map_err(|_| {
+        rnd_data_processing_lib::error::AppError::Message(format!(
+            "Invalid integer for {flag}: '{value}'"
+        ))
     })
 }
 
 fn print_usage() {
     eprintln!(
-        "Usage: rnd-pipeline --setup <schedule.xlsx> --data <folder> [--output <folder>] [--tolerance <percent>]"
+        "Usage: rnd-pipeline --setup <schedule.xlsx> --data <folder> [--output <folder>] [--tolerance <percent>] [--mode trim|window] [--skip-start N] [--skip-end N] [--window-size N]"
     );
 }

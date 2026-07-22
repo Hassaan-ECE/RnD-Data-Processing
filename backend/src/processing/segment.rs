@@ -1,8 +1,66 @@
 use std::collections::HashSet;
 
+use serde::{Deserialize, Serialize};
+
 use crate::error::{AppError, AppResult};
 use crate::processing::preprocess::MeasurementTable;
 use crate::processing::setup::LoadTarget;
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq, Eq)]
+#[serde(rename_all = "camelCase")]
+pub enum ReduceMode {
+    /// Mode A: skip N from start and M from end, average the middle.
+    Trim,
+    /// Mode B: skip M from end, then take exactly W points backwards.
+    Window,
+}
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ReduceOptions {
+    pub mode: ReduceMode,
+    /// Rows to skip at the start of each load band (trim mode).
+    pub skip_start: usize,
+    /// Rows to skip at the end of each load band.
+    pub skip_end: usize,
+    /// Window size for fixed-window mode (points taken before skip-end).
+    pub window_size: usize,
+}
+
+impl Default for ReduceOptions {
+    fn default() -> Self {
+        Self {
+            mode: ReduceMode::Trim,
+            skip_start: 2,
+            skip_end: 2,
+            window_size: 20,
+        }
+    }
+}
+
+impl ReduceOptions {
+    pub fn validate(&self) -> AppResult<()> {
+        match self.mode {
+            ReduceMode::Trim => Ok(()),
+            ReduceMode::Window => {
+                if self.window_size == 0 {
+                    Err(AppError::Message(
+                        "Window size must be at least 1".to_owned(),
+                    ))
+                } else {
+                    Ok(())
+                }
+            }
+        }
+    }
+
+    pub fn mode_label(&self) -> &'static str {
+        match self.mode {
+            ReduceMode::Trim => "Trimmed",
+            ReduceMode::Window => "Window",
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct BandRows {
@@ -11,14 +69,17 @@ pub struct BandRows {
     pub used_indices: Vec<usize>,
     pub all_timestamps: Vec<i64>,
     pub used_timestamps: Vec<i64>,
+    pub reduce_label: String,
 }
 
 pub fn segment_reference_bands(
     reference: &MeasurementTable,
     targets: &[LoadTarget],
     tolerance_percent: f64,
+    reduce: &ReduceOptions,
 ) -> AppResult<Vec<BandRows>> {
     validate_tolerance(tolerance_percent)?;
+    reduce.validate()?;
     if targets.is_empty() {
         return Err(AppError::Message(
             "No load targets were provided".to_owned(),
@@ -44,19 +105,21 @@ pub fn segment_reference_bands(
         }
     }
 
-    build_reference_bands(reference, targets, assignments, tolerance_percent)
+    build_reference_bands(reference, targets, assignments, tolerance_percent, reduce)
 }
 
 pub fn match_meter_bands(
     meter: &MeasurementTable,
     reference_bands: &[BandRows],
     timestamp_match_seconds: i64,
+    reduce: &ReduceOptions,
 ) -> AppResult<Vec<BandRows>> {
     if timestamp_match_seconds <= 0 {
         return Err(AppError::Message(
             "Timestamp matching window must be greater than zero".to_owned(),
         ));
     }
+    reduce.validate()?;
     let mut assignments = vec![Vec::new(); reference_bands.len()];
     for (row_index, row) in meter.rows.iter().enumerate() {
         let nearest = reference_bands
@@ -75,7 +138,7 @@ pub fn match_meter_bands(
         }
     }
 
-    build_matched_bands(meter, reference_bands, assignments, "meter")
+    build_matched_bands(meter, reference_bands, assignments, "meter", reduce)
 }
 
 pub fn map_reference_bands_to_table(
@@ -119,24 +182,42 @@ pub fn map_reference_bands_to_table(
             used_timestamps: timestamps_for_indices(table, &used_indices),
             all_indices,
             used_indices,
+            reduce_label: reference_band.reduce_label.clone(),
         });
     }
     Ok(mapped)
 }
 
-pub fn trimmed_indices(indices: &[usize]) -> Vec<usize> {
-    let count = indices.len();
-    let edge_count = if count >= 10 {
-        (count / 10).max(1)
-    } else if count >= 5 {
-        1
-    } else {
-        0
-    };
-    if edge_count * 2 >= count || count.saturating_sub(edge_count * 2) < 3 {
-        indices.to_vec()
-    } else {
-        indices[edge_count..count - edge_count].to_vec()
+/// Python-compatible trim / fixed-window selection over ordered band indices.
+pub fn select_used_indices(indices: &[usize], reduce: &ReduceOptions) -> AppResult<Vec<usize>> {
+    let n = indices.len();
+    match reduce.mode {
+        ReduceMode::Trim => {
+            // Skip start/end, require at least 1 remaining point (points_param=1 in Python).
+            let start = reduce.skip_start;
+            let end = n.saturating_sub(reduce.skip_end);
+            if start < end {
+                Ok(indices[start..end].to_vec())
+            } else {
+                Err(AppError::Message(format!(
+                    "Trim left no points (n={n}, skip_start={}, skip_end={})",
+                    reduce.skip_start, reduce.skip_end
+                )))
+            }
+        }
+        ReduceMode::Window => {
+            let end = n.saturating_sub(reduce.skip_end);
+            if end >= reduce.window_size && reduce.window_size > 0 {
+                let start = end - reduce.window_size;
+                Ok(indices[start..end].to_vec())
+            } else {
+                let available = end.min(n);
+                Err(AppError::Message(format!(
+                    "Window needs {} pts before skip-end, available {available} (n={n}, skip_end={})",
+                    reduce.window_size, reduce.skip_end
+                )))
+            }
+        }
     }
 }
 
@@ -145,6 +226,7 @@ fn build_reference_bands(
     targets: &[LoadTarget],
     assignments: Vec<Vec<usize>>,
     tolerance_percent: f64,
+    reduce: &ReduceOptions,
 ) -> AppResult<Vec<BandRows>> {
     let mut bands = Vec::with_capacity(targets.len());
     for (target, all_indices) in targets.iter().cloned().zip(assignments) {
@@ -154,13 +236,19 @@ fn build_reference_bands(
                 target.load_percent, target.target_amps
             )));
         }
-        let used_indices = trimmed_indices(&all_indices);
+        let used_indices = select_used_indices(&all_indices, reduce).map_err(|error| {
+            AppError::Message(format!(
+                "{} for {}% / {} A",
+                error, target.load_percent, target.target_amps
+            ))
+        })?;
         bands.push(BandRows {
             target,
             all_timestamps: timestamps_for_indices(reference, &all_indices),
             used_timestamps: timestamps_for_indices(reference, &used_indices),
             all_indices,
             used_indices,
+            reduce_label: reduce.mode_label().to_owned(),
         });
     }
     Ok(bands)
@@ -171,6 +259,7 @@ fn build_matched_bands(
     reference_bands: &[BandRows],
     assignments: Vec<Vec<usize>>,
     source_name: &str,
+    reduce: &ReduceOptions,
 ) -> AppResult<Vec<BandRows>> {
     let mut bands = Vec::with_capacity(reference_bands.len());
     for (reference_band, all_indices) in reference_bands.iter().zip(assignments) {
@@ -180,13 +269,19 @@ fn build_matched_bands(
                 reference_band.target.load_percent, reference_band.target.target_amps
             )));
         }
-        let used_indices = trimmed_indices(&all_indices);
+        let used_indices = select_used_indices(&all_indices, reduce).map_err(|error| {
+            AppError::Message(format!(
+                "{error} for {source_name} {}% / {} A",
+                reference_band.target.load_percent, reference_band.target.target_amps
+            ))
+        })?;
         bands.push(BandRows {
             target: reference_band.target.clone(),
             all_timestamps: timestamps_for_indices(table, &all_indices),
             used_timestamps: timestamps_for_indices(table, &used_indices),
             all_indices,
             used_indices,
+            reduce_label: reduce.mode_label().to_owned(),
         });
     }
     Ok(bands)
@@ -211,15 +306,38 @@ fn validate_tolerance(tolerance_percent: f64) -> AppResult<()> {
 
 #[cfg(test)]
 mod tests {
-    use super::trimmed_indices;
+    use super::{select_used_indices, ReduceMode, ReduceOptions};
 
     #[test]
-    fn trim_policy_keeps_small_bands_and_trims_large_edges() {
-        assert_eq!(trimmed_indices(&[0, 1, 2]), vec![0, 1, 2]);
-        assert_eq!(trimmed_indices(&[0, 1, 2, 3, 4, 5]), vec![1, 2, 3, 4]);
-        assert_eq!(
-            trimmed_indices(&(0..20).collect::<Vec<_>>()),
-            (2..18).collect::<Vec<_>>()
-        );
+    fn trim_skips_start_and_end_like_python() {
+        let indices = (0..10).collect::<Vec<_>>();
+        let used = select_used_indices(
+            &indices,
+            &ReduceOptions {
+                mode: ReduceMode::Trim,
+                skip_start: 2,
+                skip_end: 2,
+                window_size: 20,
+            },
+        )
+        .expect("trim should succeed");
+        assert_eq!(used, (2..8).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn window_takes_points_before_skip_end() {
+        let indices = (0..10).collect::<Vec<_>>();
+        let used = select_used_indices(
+            &indices,
+            &ReduceOptions {
+                mode: ReduceMode::Window,
+                skip_start: 0,
+                skip_end: 2,
+                window_size: 4,
+            },
+        )
+        .expect("window should succeed");
+        // end = 8, start = 4 → indices 4..8
+        assert_eq!(used, vec![4, 5, 6, 7]);
     }
 }

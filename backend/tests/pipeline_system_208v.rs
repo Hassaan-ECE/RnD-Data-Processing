@@ -64,6 +64,11 @@ fn full_pipeline_writes_and_reopens_two_reports_twice() {
         setup_path,
         output_dir: None,
         tolerance_percent: 5.0,
+        reduce: rnd_data_processing_lib::processing::segment::ReduceOptions {
+            skip_start: 0,
+            skip_end: 0,
+            ..Default::default()
+        },
     };
 
     for _ in 0..2 {

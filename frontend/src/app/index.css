@@ -375,7 +375,8 @@ svg {
 
 .number-field {
   display: flex;
-  width: 8rem;
+  width: 100%;
+  max-width: 11rem;
   align-items: center;
   gap: 0.25rem;
   min-height: 2.05rem;
@@ -688,6 +689,31 @@ svg {
 
 .tolerance-row .field-label {
   margin-bottom: 0;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: 0.65rem;
+  margin-top: 0.55rem;
+}
+
+.reduce-block {
+  margin-top: 0.75rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid #3a3a38;
+}
+
+.reduce-block > .field-label {
+  margin-bottom: 0.35rem;
+}
+
+.reduce-params {
+  margin-top: 0.55rem;
+}
+
+.reduce-block .help-text {
+  margin-top: 0.45rem;
 }
 
 @media (max-width: 420px) {

@@ -38,6 +38,10 @@ export function ProcessorPage({
   const [dataFolder, setDataFolder] = useState("");
   const [discovery, setDiscovery] = useState<DiscoveryResult | null>(null);
   const [tolerance, setTolerance] = useState(5);
+  const [reduceMode, setReduceMode] = useState<"trim" | "window">("trim");
+  const [skipStart, setSkipStart] = useState(2);
+  const [skipEnd, setSkipEnd] = useState(2);
+  const [windowSize, setWindowSize] = useState(20);
   const [outputMode, setOutputMode] = useState<"default" | "custom">("default");
   const [customOutput, setCustomOutput] = useState("");
   const [result, setResult] = useState<PipelineResult | null>(null);
@@ -74,7 +78,13 @@ export function ProcessorPage({
   );
   const successfulReports =
     result?.reports.filter((report) => report.status === "success" && report.reportPath) ?? [];
-  const canGenerate = Boolean(setupPath && setupSummary && dataFolder && discovery && tolerance > 0 && !busy);
+  const reduceValid =
+    reduceMode === "trim"
+      ? skipStart >= 0 && skipEnd >= 0
+      : windowSize >= 1 && skipEnd >= 0;
+  const canGenerate = Boolean(
+    setupPath && setupSummary && dataFolder && discovery && tolerance > 0 && reduceValid && !busy,
+  );
 
   const selectSetup = async () => {
     const selected = await chooseSetupFile();
@@ -136,6 +146,12 @@ export function ProcessorPage({
         setupPath,
         outputDir: outputMode === "custom" ? customOutput || null : null,
         tolerancePercent: tolerance,
+        reduce: {
+          mode: reduceMode,
+          skipStart: reduceMode === "trim" ? skipStart : 0,
+          skipEnd,
+          windowSize: reduceMode === "window" ? windowSize : 20,
+        },
       });
       setResult(pipelineResult);
       const message = `${pipelineResult.successCount} report${pipelineResult.successCount === 1 ? "" : "s"} generated`;
@@ -201,7 +217,7 @@ export function ProcessorPage({
           disabled={busy}
         />
 
-        <div className="tolerance-row">
+        <div className="options-grid">
           <div>
             <label className="field-label" htmlFor="tolerance-input">
               Match tolerance (±%)
@@ -219,6 +235,93 @@ export function ProcessorPage({
               <span>%</span>
             </div>
           </div>
+        </div>
+
+        <div className="reduce-block">
+          <span className="field-label">Average method</span>
+          <div className="segmented-control" role="radiogroup" aria-label="Average method">
+            <button
+              type="button"
+              role="radio"
+              aria-checked={reduceMode === "trim"}
+              className={reduceMode === "trim" ? "active" : ""}
+              onClick={() => setReduceMode("trim")}
+              title="Skip rows from the start and end, then average the rest."
+            >
+              Standard trim
+            </button>
+            <button
+              type="button"
+              role="radio"
+              aria-checked={reduceMode === "window"}
+              className={reduceMode === "window" ? "active" : ""}
+              onClick={() => setReduceMode("window")}
+              title="Skip rows from the end, then take a fixed number of points backwards."
+            >
+              Fixed window
+            </button>
+          </div>
+          <div className="options-grid reduce-params">
+            {reduceMode === "trim" ? (
+              <div>
+                <label className="field-label" htmlFor="skip-start-input">
+                  Skip start
+                </label>
+                <div className="number-field">
+                  <input
+                    id="skip-start-input"
+                    type="number"
+                    min="0"
+                    max="500"
+                    step="1"
+                    value={skipStart}
+                    onChange={(event) => setSkipStart(Math.max(0, Number(event.target.value) || 0))}
+                  />
+                  <span>rows</span>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <label className="field-label" htmlFor="window-size-input">
+                  Window size
+                </label>
+                <div className="number-field">
+                  <input
+                    id="window-size-input"
+                    type="number"
+                    min="1"
+                    max="500"
+                    step="1"
+                    value={windowSize}
+                    onChange={(event) => setWindowSize(Math.max(1, Number(event.target.value) || 1))}
+                  />
+                  <span>pts</span>
+                </div>
+              </div>
+            )}
+            <div>
+              <label className="field-label" htmlFor="skip-end-input">
+                Skip end
+              </label>
+              <div className="number-field">
+                <input
+                  id="skip-end-input"
+                  type="number"
+                  min="0"
+                  max="500"
+                  step="1"
+                  value={skipEnd}
+                  onChange={(event) => setSkipEnd(Math.max(0, Number(event.target.value) || 0))}
+                />
+                <span>rows</span>
+              </div>
+            </div>
+          </div>
+          <p className="help-text">
+            {reduceMode === "trim"
+              ? "Per load band: drop the first/last rows, then average what remains (same as Python Mode A)."
+              : "Per load band: drop the last rows, then average the previous N points (same as Python Mode B)."}
+          </p>
         </div>
       </section>
 

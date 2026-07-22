@@ -1,6 +1,8 @@
 use crate::error::{AppError, AppResult};
 use crate::processing::preprocess::{MeasurementTable, NUMERIC_HEADERS};
-use crate::processing::segment::{map_reference_bands_to_table, match_meter_bands, BandRows};
+use crate::processing::segment::{
+    map_reference_bands_to_table, match_meter_bands, BandRows, ReduceOptions,
+};
 use crate::processing::setup::LoadTarget;
 
 const NEAR_ZERO_REFERENCE: f64 = 1.0e-9;
@@ -9,6 +11,7 @@ const NEAR_ZERO_REFERENCE: f64 = 1.0e-9;
 pub struct ComparisonBlock {
     pub target: LoadTarget,
     pub tolerance_percent: f64,
+    pub reduce_label: String,
     pub auto_average: Vec<Option<f64>>,
     pub meter_average: Vec<Option<f64>>,
     pub error_percent: Vec<Option<f64>>,
@@ -35,8 +38,10 @@ pub fn build_meter_report_data(
     reference_bands: &[BandRows],
     timestamp_match_seconds: i64,
     tolerance_percent: f64,
+    reduce: &ReduceOptions,
 ) -> AppResult<MeterReportData> {
-    let meter_bands = match_meter_bands(&meter_table, reference_bands, timestamp_match_seconds)?;
+    let meter_bands =
+        match_meter_bands(&meter_table, reference_bands, timestamp_match_seconds, reduce)?;
     let auto_bands = map_reference_bands_to_table(&auto_table, reference_bands)?;
     let mut comparisons = Vec::with_capacity(reference_bands.len());
 
@@ -51,6 +56,7 @@ pub fn build_meter_report_data(
         comparisons.push(ComparisonBlock {
             target: meter_band.target.clone(),
             tolerance_percent,
+            reduce_label: meter_band.reduce_label.clone(),
             auto_average,
             meter_average,
             error_percent,

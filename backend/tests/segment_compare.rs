@@ -7,7 +7,7 @@ use rnd_data_processing_lib::processing::compare::{
 };
 use rnd_data_processing_lib::processing::discover::discover_data_folder;
 use rnd_data_processing_lib::processing::preprocess::{preprocess_acuvim, preprocess_auto};
-use rnd_data_processing_lib::processing::segment::segment_reference_bands;
+use rnd_data_processing_lib::processing::segment::{segment_reference_bands, ReduceOptions};
 use rnd_data_processing_lib::processing::setup::{load_targets_from_json, LoadTarget};
 
 fn repository_root() -> PathBuf {
@@ -35,10 +35,16 @@ fn real_fixtures_build_thirteen_comparisons_for_both_meters() {
         .expect("segmentation group should exist")];
     let segmentation_table =
         preprocess_auto(&discovery.auto_path, segmentation_group).expect("Auto should preprocess");
+    let reduce = ReduceOptions {
+        skip_start: 0,
+        skip_end: 0,
+        ..ReduceOptions::default()
+    };
     let reference_bands = segment_reference_bands(
         &segmentation_table,
         &targets,
         config.registry.defaults.tolerance_percent,
+        &reduce,
     )
     .expect("all target bands should exist");
     assert_eq!(reference_bands.len(), 13);
@@ -58,6 +64,7 @@ fn real_fixtures_build_thirteen_comparisons_for_both_meters() {
             &reference_bands,
             config.registry.defaults.timestamp_match_seconds,
             config.registry.defaults.tolerance_percent,
+            &reduce,
         )
         .expect("comparison report should build");
 
@@ -104,6 +111,7 @@ fn error_formula_and_empty_band_failures_are_explicit() {
             target_amps: 9999.0,
         }],
         5.0,
+        &ReduceOptions::default(),
     )
     .expect_err("empty band should fail");
     assert!(error.to_string().contains("No Auto rows fell within"));

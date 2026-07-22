@@ -114,6 +114,12 @@ describe("RnD Data Processing UI", () => {
       setupPath,
       outputDir: null,
       tolerancePercent: 5,
+      reduce: {
+        mode: "trim",
+        skipStart: 2,
+        skipEnd: 2,
+        windowSize: 20,
+      },
     });
 
     await act(async () => {

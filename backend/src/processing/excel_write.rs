@@ -200,9 +200,10 @@ fn write_detail_sheet(
 
         let averages = average_rows(table, &band.used_indices)?;
         let label = format!(
-            "Averaged Data - {}A ({}%, Trimmed: Used {} pts)",
+            "Averaged Data - {}A ({}%, {}: Used {} pts)",
             display_number(band.target.target_amps),
             display_number(band.target.load_percent),
+            band.reduce_label,
             band.used_indices.len()
         );
         note_width(&mut col_widths, 0, &label);
@@ -302,10 +303,11 @@ fn write_comparison_sheet(
     let last_column = NUMERIC_HEADERS.len() as u16;
     for comparison in &report.comparisons {
         let label = format!(
-            "--- Averaged Data - {}A ({}%, ±{}%, Meter Used {} pts, Auto Used {} pts) ---",
+            "--- Averaged Data - {}A ({}%, ±{}%, {}, Meter Used {} pts, Auto Used {} pts) ---",
             display_number(comparison.target.target_amps),
             display_number(comparison.target.load_percent),
             display_number(comparison.tolerance_percent),
+            comparison.reduce_label,
             comparison.meter_used_count,
             comparison.auto_used_count
         );
