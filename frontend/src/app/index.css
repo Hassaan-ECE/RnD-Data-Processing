@@ -5,7 +5,7 @@
   color: #ffffff;
   background: #20201f;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 13px;
+  font-size: 15px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -44,8 +44,8 @@ button:disabled {
 }
 
 svg {
-  width: 0.95rem;
-  height: 0.95rem;
+  width: 1.05rem;
+  height: 1.05rem;
   flex: 0 0 auto;
 }
 
@@ -64,8 +64,8 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: 2.5rem;
-  padding: 0.4rem 0.65rem;
+  min-height: 2.75rem;
+  padding: 0.45rem 0.7rem;
   border-bottom: 1px solid #3a3a38;
   background: #292928;
 }
@@ -78,14 +78,14 @@ svg {
 }
 
 .brand-lockup strong {
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 600;
   letter-spacing: 0.01em;
 }
 
 .brand-lockup span {
   color: #9a9a96;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
 }
 
 .header-actions {
@@ -95,10 +95,10 @@ svg {
 }
 
 .announcement {
-  max-width: 10rem;
+  max-width: 11rem;
   overflow: hidden;
   color: #8a8a86;
-  font-size: 0.68rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -130,13 +130,13 @@ svg {
 
 .update-button {
   display: inline-flex;
-  min-height: 1.65rem;
+  min-height: 1.85rem;
   align-items: center;
   gap: 0.3rem;
-  padding: 0 0.5rem;
+  padding: 0 0.55rem;
   background: #3a3a38;
   color: #e8e8e6;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
@@ -146,14 +146,14 @@ svg {
 
 .secondary-button {
   display: inline-flex;
-  min-height: 1.85rem;
+  min-height: 2.05rem;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  padding: 0 0.55rem;
+  padding: 0 0.65rem;
   background: #3a3a38;
   color: #ffffff;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -165,13 +165,13 @@ svg {
 .primary-button {
   display: inline-flex;
   width: 100%;
-  min-height: 2.15rem;
+  min-height: 2.4rem;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
   background: #1d7f47;
   color: #ffffff;
-  font-size: 0.82rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
@@ -181,13 +181,13 @@ svg {
 
 .back-button {
   display: inline-flex;
-  min-height: 1.65rem;
+  min-height: 1.85rem;
   align-items: center;
   gap: 0.25rem;
-  padding: 0 0.45rem;
+  padding: 0 0.5rem;
   background: #3a3a38;
   color: #e8e8e6;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
@@ -224,7 +224,7 @@ svg {
 .section-heading h2 {
   margin: 0;
   color: #ffffff;
-  font-size: 0.78rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
@@ -236,12 +236,12 @@ svg {
   display: inline-flex;
   align-items: center;
   gap: 0.2rem;
-  min-height: 1.25rem;
-  padding: 0 0.4rem;
+  min-height: 1.35rem;
+  padding: 0 0.45rem;
   border-radius: 0.2rem;
   background: #343434;
   color: #b8b8b4;
-  font-size: 0.65rem;
+  font-size: 0.75rem;
   font-weight: 600;
 }
 
@@ -260,7 +260,7 @@ svg {
   display: block;
   margin: 0 0 0.25rem;
   color: #a8a8a4;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 
@@ -290,14 +290,14 @@ svg {
   flex: 1;
   align-items: center;
   gap: 0.35rem;
-  min-height: 1.85rem;
-  padding: 0 0.45rem;
+  min-height: 2.05rem;
+  padding: 0 0.5rem;
   overflow: hidden;
   border: 1px solid #3a3a38;
   border-radius: 0.25rem;
   background: #1f1f1e;
   color: #d0d0cc;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
 }
 
 .path-value svg {
@@ -312,41 +312,42 @@ svg {
 
 .number-field {
   display: flex;
-  width: 7.5rem;
+  width: 8rem;
   align-items: center;
   gap: 0.25rem;
-  min-height: 1.85rem;
-  padding: 0 0.45rem;
+  min-height: 2.05rem;
+  padding: 0 0.5rem;
   border: 1px solid #3a3a38;
   border-radius: 0.25rem;
   background: #1f1f1e;
 }
 
 .number-field input {
-  width: 3.25rem;
+  width: 3.5rem;
   border: 0;
   outline: 0;
   background: transparent;
   color: #ffffff;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .number-field span {
   color: #9a9a96;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 .inline-error {
   margin: 0.4rem 0 0;
   color: #f0a8a0;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 .runtime-note,
 .help-text {
   margin: 0.35rem 0 0;
   color: #8a8a86;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   line-height: 1.35;
 }
 
@@ -354,24 +355,24 @@ svg {
   display: flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 0.55rem;
+  padding: 0.5rem 0.6rem;
   border-radius: 0.25rem;
   background: #51452b;
   color: #f0e0b8;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 /* —— Hub tests —— */
 .page-title {
   margin: 0 0 0.15rem;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
 .page-sub {
   margin: 0 0 0.35rem;
   color: #9a9a96;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 .test-list {
@@ -386,8 +387,8 @@ svg {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
-  min-height: 2.35rem;
-  padding: 0.4rem 0.55rem;
+  min-height: 2.65rem;
+  padding: 0.5rem 0.65rem;
   text-align: left;
   background: #343434;
   color: #ffffff;
@@ -415,12 +416,12 @@ svg {
 }
 
 .test-row-copy strong {
-  font-size: 0.8rem;
+  font-size: 0.95rem;
   font-weight: 650;
 }
 
 .test-row-copy span {
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   color: #9a9a96;
 }
 
@@ -430,11 +431,11 @@ svg {
 
 .test-badge {
   flex-shrink: 0;
-  padding: 0.15rem 0.4rem;
+  padding: 0.2rem 0.45rem;
   border-radius: 0.2rem;
   background: #1d7f47;
   color: #ffffff;
-  font-size: 0.62rem;
+  font-size: 0.72rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -455,7 +456,7 @@ svg {
 
 .processor-heading h1 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 1.1rem;
   font-weight: 700;
 }
 
@@ -483,25 +484,25 @@ svg {
 }
 
 .detected-item strong {
-  font-size: 0.75rem;
+  font-size: 0.88rem;
   font-weight: 650;
 }
 
 .detected-item span {
   overflow: hidden;
   color: #8a8a86;
-  font-size: 0.65rem;
+  font-size: 0.78rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .mapping-badge {
   flex-shrink: 0;
-  padding: 0.12rem 0.35rem;
+  padding: 0.15rem 0.4rem;
   border-radius: 0.2rem;
   background: #274554;
   color: #c8dde6 !important;
-  font-size: 0.62rem !important;
+  font-size: 0.72rem !important;
   font-weight: 650;
   white-space: nowrap;
 }
@@ -512,13 +513,13 @@ svg {
   gap: 0.3rem;
   margin: 0;
   color: #e8c476;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
 }
 
 .empty-state {
   padding: 0.65rem 0.4rem;
   color: #8a8a86;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
   text-align: center;
 }
 
@@ -530,10 +531,10 @@ svg {
 }
 
 .segmented-control button {
-  min-height: 1.75rem;
+  min-height: 1.95rem;
   background: #1f1f1e;
   color: #9a9a96;
-  font-size: 0.72rem;
+  font-size: 0.82rem;
   font-weight: 600;
 }
 
@@ -543,13 +544,13 @@ svg {
 }
 
 .output-path {
-  padding: 0.4rem 0.45rem;
+  padding: 0.45rem 0.5rem;
   overflow: hidden;
   border: 1px solid #3a3a38;
   border-radius: 0.25rem;
   background: #1f1f1e;
   color: #a8a8a4;
-  font-size: 0.7rem;
+  font-size: 0.82rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -580,9 +581,9 @@ svg {
   display: flex;
   align-items: flex-start;
   gap: 0.45rem;
-  padding: 0.5rem 0.55rem;
+  padding: 0.55rem 0.6rem;
   border-radius: 0.25rem;
-  font-size: 0.72rem;
+  font-size: 0.85rem;
 }
 
 .result-banner > div {
@@ -593,13 +594,13 @@ svg {
 }
 
 .result-banner strong {
-  font-size: 0.78rem;
+  font-size: 0.9rem;
 }
 
 .result-banner span {
   color: #c0c0bc;
   overflow-wrap: anywhere;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
 }
 
 .result-banner.success {
@@ -622,11 +623,11 @@ svg {
 }
 
 .report-pill {
-  padding: 0.15rem 0.35rem;
+  padding: 0.2rem 0.4rem;
   border-radius: 0.2rem;
   background: #1d7f47;
   color: #ffffff !important;
-  font-size: 0.65rem !important;
+  font-size: 0.75rem !important;
   font-weight: 600;
 }
 

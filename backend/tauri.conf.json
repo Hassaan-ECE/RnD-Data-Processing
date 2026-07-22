@@ -14,10 +14,10 @@
       {
         "label": "main",
         "title": "RnD Data Processing",
-        "width": 420,
-        "height": 720,
-        "minWidth": 380,
-        "minHeight": 560,
+        "width": 440,
+        "height": 760,
+        "minWidth": 400,
+        "minHeight": 600,
         "center": true,
         "resizable": true
       }
