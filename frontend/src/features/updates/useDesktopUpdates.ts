@@ -75,7 +75,7 @@ export function useDesktopUpdates(announce: (message: string) => void) {
       pendingUpdate.current = update;
       if (!update) {
         setState({ status: "current", message: "You are up to date." });
-        announce("RnD Data Processing is up to date.");
+        announce("Data Processing is up to date.");
         return;
       }
       setState({ status: "available", latestVersion: update.version });

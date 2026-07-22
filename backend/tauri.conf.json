@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "RnD Data Processing",
+  "productName": "Data Processing",
   "version": "0.1.0",
   "identifier": "com.te.lab.rnd-data-processing",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "RnD Data Processing",
+        "title": "Data Processing v0.1.0",
         "width": 440,
         "height": 760,
         "minWidth": 400,

@@ -62,43 +62,21 @@ svg {
   display: flex;
   flex-shrink: 0;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.45rem 0.7rem;
+  justify-content: flex-end;
+  gap: 0.55rem;
+  min-height: 2.5rem;
+  padding: 0.4rem 0.65rem;
   border-bottom: 1px solid #3a3a38;
   background: #292928;
 }
 
-.brand-lockup {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.05rem;
-}
-
-.brand-lockup strong {
-  font-size: 0.95rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.brand-lockup span {
-  color: #9a9a96;
-  font-size: 0.78rem;
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.45rem;
-}
-
 .announcement {
-  max-width: 11rem;
+  min-width: 0;
+  flex: 1;
   overflow: hidden;
   color: #8a8a86;
   font-size: 0.78rem;
+  text-align: left;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
