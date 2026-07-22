@@ -6,9 +6,9 @@
 - Repository path: `C:\Projects\Active\RnD Data Processing`
 - Git remote: `https://github.com/Hassaan-ECE/RnD-Data-Processing.git`
 - Delivery branch: `main`
-- Validated release/documentation commit: `904842e`
+- Validated application commit: `2d6eccc`
 - Push destination: `origin/main`
-- Push verified: `origin/main` contains handoff metadata commit `b3fd75a`
+- Delivery branch includes the validated application commit above.
 - Implementation is complete for the System 208V v0.1 path.
 
 ## Run from PowerShell
