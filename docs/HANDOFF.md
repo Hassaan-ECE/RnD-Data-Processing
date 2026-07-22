@@ -118,13 +118,13 @@ The required sample setup, data folder, and gold workbook were present. The ship
 Run 1:
 
 - Exit code: `0`
-- Duration reported by pipeline: `933 ms`
+- Duration reported by pipeline: `735 ms`
 - Reports: 2 success, 0 failure, 13 targets, no warnings.
 
 Run 2:
 
 - Exit code: `0`
-- Duration reported by pipeline: `1930 ms`
+- Duration reported by pipeline: `1493 ms`
 - Reports: 2 success, 0 failure, 13 targets, no warnings.
 
 Generated files:
@@ -168,10 +168,10 @@ Smoke-test artifact produced outside Git:
 
 ```text
 C:\Projects\Active\RnD Data Processing\backend\target\release\bundle\nsis\RnD Data Processing_0.1.0_x64-setup.exe
-Size: 4,315,926 bytes
+Size observed in the final replay: 4,316,151 bytes
 ```
 
-The tested `bun run build:desktop:unsigned` helper completed with exit code `0`. Its first bundle attempt reproduced OS error 1224; the bounded helper cleaned the partial output, waited, and succeeded on attempt 2. The final artifact size was `4,315,926` bytes.
+The tested `bun run build:desktop:unsigned` helper completed with exit code `0`. Its first bundle attempt reproduced OS error 1224; the bounded helper cleaned the partial output, waited, and succeeded on attempt 2. The final replay artifact size was `4,316,151` bytes; installer size can vary slightly with build metadata.
 
 The fallback intentionally skipped signing and emitted no `.sig`. Tauri also warned that `__TAURI_BUNDLE_TYPE` was not found while rebundling the cached binary, so this local installer validates NSIS creation but is not the production updater artifact. The exact helper output was captured during verification; the durable result is summarized above.
 
