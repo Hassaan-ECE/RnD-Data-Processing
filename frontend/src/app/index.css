@@ -71,16 +71,20 @@ svg {
 }
 
 .app-main {
+  display: flex;
   flex: 1;
   min-height: 0;
+  flex-direction: column;
   overflow: auto;
   padding: 0.65rem;
 }
 
 .page-stack {
   display: flex;
+  min-height: 100%;
+  flex: 1;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: 0.65rem;
 }
 
 /* —— Buttons —— */
