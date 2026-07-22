@@ -1,9 +1,9 @@
-import { useCallback, useEffect, useState } from "react";
-import { LoaderCircle, RefreshCw } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { HubPage } from "../features/hub/HubPage";
 import { ProcessorPage } from "../features/processor/ProcessorPage";
-import { updateButtonLabel, useDesktopUpdates } from "../features/updates/useDesktopUpdates";
+import { UpdateActionButton } from "../features/updates/UpdateActionButton";
+import { useDesktopUpdates } from "../features/updates/useDesktopUpdates";
 import { getAppVersion, isTauriRuntime } from "../integrations/tauri/backend";
 
 const SETUP_STORAGE_KEY = "rnd-data-processing.setup-path";
@@ -48,28 +48,15 @@ export function App() {
     }
   }, [setupPath]);
 
+  const updateControl: ReactNode = (
+    <UpdateActionButton state={updates.state} onClick={() => void updates.runAction()} />
+  );
+
   return (
     <div className="app-shell">
-      <header className="app-header">
-        <span className="announcement" aria-live="polite" title={announcement}>
-          {announcement}
-        </span>
-        <button
-          className="update-button"
-          type="button"
-          onClick={updates.runAction}
-          disabled={["checking", "downloading", "installing"].includes(updates.state.status)}
-        >
-          {updates.state.status === "checking" ||
-          updates.state.status === "downloading" ||
-          updates.state.status === "installing" ? (
-            <LoaderCircle className="spin" />
-          ) : (
-            <RefreshCw />
-          )}
-          {updateButtonLabel(updates.state)}
-        </button>
-      </header>
+      <span className="sr-only" aria-live="polite">
+        {announcement}
+      </span>
       <main className="app-main">
         {page === "hub" ? (
           <HubPage
@@ -77,6 +64,7 @@ export function App() {
             onSetupPathChange={setSetupPath}
             onOpenSystem208v={() => setPage("system_208v")}
             announce={announce}
+            updateControl={updateControl}
           />
         ) : (
           <ProcessorPage
@@ -84,6 +72,7 @@ export function App() {
             onSetupPathChange={setSetupPath}
             onBack={() => setPage("hub")}
             announce={announce}
+            updateControl={updateControl}
           />
         )}
       </main>

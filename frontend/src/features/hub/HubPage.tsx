@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { FileSpreadsheet } from "lucide-react";
 
 import {
@@ -13,6 +13,7 @@ interface HubPageProps {
   onSetupPathChange: (path: string) => void;
   onOpenSystem208v: () => void;
   announce: (message: string) => void;
+  updateControl: ReactNode;
 }
 
 const comingSoonTests = ["System 415V", "Sub-feed 208V", "Sub-feed 415V"];
@@ -22,6 +23,7 @@ export function HubPage({
   onSetupPathChange,
   onOpenSystem208v,
   announce,
+  updateControl,
 }: HubPageProps) {
   const [setupSummary, setSetupSummary] = useState<SetupLoadResult | null>(null);
   const [setupError, setSetupError] = useState("");
@@ -71,9 +73,12 @@ export function HubPage({
 
   return (
     <div className="page-stack hub-page">
-      <div>
-        <h1 className="page-title">Tests</h1>
-        <p className="page-sub">Select a setup workbook, then open a test.</p>
+      <div className="hub-heading">
+        <div className="hub-heading-copy">
+          <h1 className="page-title">Tests</h1>
+          <p className="page-sub">Select a setup workbook, then open a test.</p>
+        </div>
+        <div className="heading-side heading-side-end">{updateControl}</div>
       </div>
 
       <section className="panel setup-panel" aria-labelledby="setup-heading">

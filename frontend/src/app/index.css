@@ -5,7 +5,7 @@
   color: #ffffff;
   background: #20201f;
   font-family: "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-  font-size: 15px;
+  font-size: 17px;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -44,8 +44,8 @@ button:disabled {
 }
 
 svg {
-  width: 1.05rem;
-  height: 1.05rem;
+  width: 1.15rem;
+  height: 1.15rem;
   flex: 0 0 auto;
 }
 
@@ -58,34 +58,23 @@ svg {
   color: #ffffff;
 }
 
-.app-header {
-  display: flex;
-  flex-shrink: 0;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.55rem;
-  min-height: 2.5rem;
-  padding: 0.4rem 0.65rem;
-  border-bottom: 1px solid #3a3a38;
-  background: #292928;
-}
-
-.announcement {
-  min-width: 0;
-  flex: 1;
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
   overflow: hidden;
-  color: #8a8a86;
-  font-size: 0.78rem;
-  text-align: left;
-  text-overflow: ellipsis;
+  clip: rect(0, 0, 0, 0);
   white-space: nowrap;
+  border: 0;
 }
 
 .app-main {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 0.55rem;
+  padding: 0.65rem;
 }
 
 .page-stack {
@@ -108,14 +97,15 @@ svg {
 
 .update-button {
   display: inline-flex;
-  min-height: 1.85rem;
+  min-height: 2.05rem;
   align-items: center;
-  gap: 0.3rem;
-  padding: 0 0.55rem;
+  gap: 0.35rem;
+  padding: 0 0.65rem;
   background: #3a3a38;
   color: #e8e8e6;
-  font-size: 0.82rem;
+  font-size: 0.88rem;
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .update-button:hover:not(:disabled) {
@@ -124,14 +114,14 @@ svg {
 
 .secondary-button {
   display: inline-flex;
-  min-height: 2.05rem;
+  min-height: 2.2rem;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  padding: 0 0.65rem;
+  padding: 0 0.7rem;
   background: #3a3a38;
   color: #ffffff;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
   font-weight: 600;
   white-space: nowrap;
 }
@@ -143,13 +133,13 @@ svg {
 .primary-button {
   display: inline-flex;
   width: 100%;
-  min-height: 2.4rem;
+  min-height: 2.55rem;
   align-items: center;
   justify-content: center;
   gap: 0.35rem;
   background: #1d7f47;
   color: #ffffff;
-  font-size: 0.95rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -202,7 +192,7 @@ svg {
 .section-heading h2 {
   margin: 0;
   color: #ffffff;
-  font-size: 0.9rem;
+  font-size: 0.98rem;
   font-weight: 700;
 }
 
@@ -238,7 +228,7 @@ svg {
   display: block;
   margin: 0 0 0.25rem;
   color: #a8a8a4;
-  font-size: 0.8rem;
+  font-size: 0.88rem;
   font-weight: 600;
 }
 
@@ -275,7 +265,7 @@ svg {
   border-radius: 0.25rem;
   background: #1f1f1e;
   color: #d0d0cc;
-  font-size: 0.82rem;
+  font-size: 0.9rem;
 }
 
 .path-value svg {
@@ -341,16 +331,28 @@ svg {
 }
 
 /* —— Hub tests —— */
+.hub-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.hub-heading-copy {
+  min-width: 0;
+  flex: 1;
+}
+
 .page-title {
-  margin: 0 0 0.15rem;
-  font-size: 1.1rem;
+  margin: 0 0 0.2rem;
+  font-size: 1.2rem;
   font-weight: 700;
 }
 
 .page-sub {
-  margin: 0 0 0.35rem;
+  margin: 0;
   color: #9a9a96;
-  font-size: 0.85rem;
+  font-size: 0.92rem;
 }
 
 .test-list {
@@ -394,12 +396,12 @@ svg {
 }
 
 .test-row-copy strong {
-  font-size: 0.95rem;
+  font-size: 1.02rem;
   font-weight: 650;
 }
 
 .test-row-copy span {
-  font-size: 0.78rem;
+  font-size: 0.86rem;
   color: #9a9a96;
 }
 
@@ -426,16 +428,34 @@ svg {
 
 /* —— Processor —— */
 .processor-heading {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.15rem;
+  gap: 0.45rem;
+  margin-bottom: 0.25rem;
 }
 
 .processor-heading h1 {
   margin: 0;
-  font-size: 1.1rem;
+  justify-self: center;
+  text-align: center;
+  font-size: 1.25rem;
   font-weight: 700;
+  white-space: nowrap;
+}
+
+.heading-side {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
+.heading-side-start {
+  justify-content: flex-start;
+}
+
+.heading-side-end {
+  justify-content: flex-end;
 }
 
 .detected-list {
