@@ -84,7 +84,9 @@ cargo run --manifest-path backend/Cargo.toml --bin rnd-pipeline -- --setup "C:\P
 - Selected `rust_xlsxwriter 0.96` because it is current and compatible with the available dependency graph.
 - Used simple readable workbook styling rather than attempting unsupported perfect color-gradient parity.
 
-## Validation performed July 21, 2026
+## Validation performed July 22, 2026
+
+Windows host-local timestamps in the captured evidence display the evening of July 21, 2026.
 
 All of these passed:
 
