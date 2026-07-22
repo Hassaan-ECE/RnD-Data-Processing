@@ -44,6 +44,7 @@ pub fn write_report_workbook(
     let average_text = Format::new()
         .set_bold()
         .set_align(FormatAlign::Center)
+        .set_text_wrap()
         .set_background_color(Color::RGB(0xFFFF00));
     let average_number = Format::new()
         .set_bold()
@@ -53,6 +54,7 @@ pub fn write_report_workbook(
     let section_format = Format::new()
         .set_bold()
         .set_align(FormatAlign::Center)
+        .set_text_wrap()
         .set_background_color(Color::RGB(0xEEEEEE));
     let auto_text = Format::new()
         .set_align(FormatAlign::Center)
@@ -199,15 +201,20 @@ fn write_detail_sheet(
         excel_row += 1;
 
         let averages = average_rows(table, &band.used_indices)?;
-        let label = format!(
-            "Averaged Data - {}A ({}%, {}: Used {} pts)",
-            display_number(band.target.target_amps),
-            display_number(band.target.load_percent),
-            band.reduce_label,
-            band.used_indices.len()
+        let label = detail_average_label(
+            band.target.target_amps,
+            band.target.load_percent,
+            &band.reduce_label,
+            band.used_indices.len(),
         );
-        note_width(&mut col_widths, 0, &label);
+        // Width from the longer of the two wrapped lines (before the newline).
+        note_width(
+            &mut col_widths,
+            0,
+            label.lines().max_by_key(|line| line.len()).unwrap_or("Averaged Data"),
+        );
         worksheet.write_string_with_format(excel_row, 0, &label, average_text)?;
+        worksheet.set_row_height(excel_row, 30.0)?;
         for (column_index, value) in averages.iter().enumerate() {
             let column = (column_index + 1) as u16;
             if let Some(value) = value {
@@ -302,17 +309,17 @@ fn write_comparison_sheet(
     let mut excel_row = 2;
     let last_column = NUMERIC_HEADERS.len() as u16;
     for comparison in &report.comparisons {
-        let label = format!(
-            "--- Averaged Data - {}A ({}%, ±{}%, {}, Meter Used {} pts, Auto Used {} pts) ---",
-            display_number(comparison.target.target_amps),
-            display_number(comparison.target.load_percent),
-            display_number(comparison.tolerance_percent),
-            comparison.reduce_label,
+        let label = comparison_average_label(
+            comparison.target.target_amps,
+            comparison.target.load_percent,
+            comparison.tolerance_percent,
+            &comparison.reduce_label,
             comparison.meter_used_count,
-            comparison.auto_used_count
+            comparison.auto_used_count,
         );
         note_width(&mut col_widths, 0, "Source");
         worksheet.merge_range(excel_row, 0, excel_row, last_column, &label, section_format)?;
+        worksheet.set_row_height(excel_row, 32.0)?;
         excel_row += 1;
 
         write_comparison_values(
@@ -421,4 +428,35 @@ fn display_number(value: f64) -> String {
     } else {
         format!("{value:.2}").trim_end_matches('0').to_owned()
     }
+}
+
+/// Two-line detail average label so the title is not cut off in the Time column.
+fn detail_average_label(amps: f64, load_percent: f64, reduce_label: &str, used_pts: usize) -> String {
+    format!(
+        "Averaged Data - {}A\n({}%, {}: Used {} pts)",
+        display_number(amps),
+        display_number(load_percent),
+        reduce_label,
+        used_pts
+    )
+}
+
+/// Two-line comparison section header (title + details).
+fn comparison_average_label(
+    amps: f64,
+    load_percent: f64,
+    tolerance_percent: f64,
+    reduce_label: &str,
+    meter_used: usize,
+    auto_used: usize,
+) -> String {
+    format!(
+        "--- Averaged Data - {}A ---\n({}%, ±{}%, {}, Meter Used {} pts, Auto Used {} pts)",
+        display_number(amps),
+        display_number(load_percent),
+        display_number(tolerance_percent),
+        reduce_label,
+        meter_used,
+        auto_used
+    )
 }

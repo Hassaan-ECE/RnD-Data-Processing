@@ -86,9 +86,9 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
         .cells()
         .filter_map(|(_, _, cell)| cell.as_string())
         .collect::<Vec<_>>();
-    assert!(strings
-        .iter()
-        .any(|value| value.contains("Averaged Data - 1395A")));
+    assert!(strings.iter().any(|value| {
+        value.contains("Averaged Data - 1395A") && value.contains('\n')
+    }));
     assert!(strings.iter().any(|value| value == "WM AUTO"));
     assert!(strings.iter().any(|value| value == "METER"));
     assert!(strings.iter().any(|value| value == "Error %"));
