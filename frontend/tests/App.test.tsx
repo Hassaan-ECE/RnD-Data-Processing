@@ -93,7 +93,7 @@ describe("RnD Data Processing UI", () => {
     expect(screen.getByLabelText("Match tolerance (±%)")).toHaveValue(5);
     expect(screen.getByRole("button", { name: "Generate reports" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Open report\(s\)/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Open output folder/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: /Open folder/i })).toBeDisabled();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Browse data folder" }));
@@ -119,7 +119,7 @@ describe("RnD Data Processing UI", () => {
     });
     await waitFor(() => expect(backend.openPath).toHaveBeenCalledWith(`${outputFolder}\\IIW.xlsx`));
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: /Open output folder/i }));
+      fireEvent.click(screen.getByRole("button", { name: /Open folder/i }));
     });
     await waitFor(() => expect(backend.openPath).toHaveBeenCalledWith(outputFolder));
 
