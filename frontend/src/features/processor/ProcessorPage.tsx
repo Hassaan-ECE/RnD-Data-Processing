@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode, type WheelEvent as ReactWheelEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ArrowLeft,
   ExternalLink,
@@ -125,15 +125,26 @@ export function ProcessorPage({
   }, [setupPath]);
 
   // Live load-range rail: re-run light preview when setup/data/tolerance/method change.
+  // Keep the previous preview only while refreshing the *same* setup+data identity
+  // (tolerance/trim tweaks). Changing setup or data folder clears stale bands immediately.
+  const previewSourceIdentityRef = useRef<string | null>(null);
   useEffect(() => {
     if (!setupPath || !isTauriRuntime() || tolerance <= 0) {
       setPreview(null);
       setPreviewError("");
+      setPreviewLoading(false);
+      previewSourceIdentityRef.current = null;
       return;
     }
+    const sourceIdentity = `${setupPath}\0${dataFolder || ""}`;
+    if (previewSourceIdentityRef.current !== sourceIdentity) {
+      setPreview(null);
+      previewSourceIdentityRef.current = null;
+    }
+    setPreviewError("");
+    setPreviewLoading(true);
     let active = true;
     const handle = window.setTimeout(() => {
-      setPreviewLoading(true);
       previewLoadBands({
         setupPath,
         dataFolder: dataFolder || null,
@@ -144,12 +155,15 @@ export function ProcessorPage({
           if (active) {
             setPreview(next);
             setPreviewError("");
+            previewSourceIdentityRef.current = sourceIdentity;
           }
         })
         .catch((previewFailure) => {
           if (active) {
-            setPreview(null);
             setPreviewError(errorMessage(previewFailure));
+            if (previewSourceIdentityRef.current !== sourceIdentity) {
+              setPreview(null);
+            }
           }
         })
         .finally(() => {
@@ -547,13 +561,37 @@ function clampInt(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, Math.round(value)));
 }
 
-/** Compact editable chip — same idea as the sidebar ±% tolerance chip. */
+/** Compact editable chip — scroll anywhere on the chip; never scrolls the page. */
 function ParamChip({ id, label, unit, value, min, max, onChange }: ParamChipProps) {
   const [draft, setDraft] = useState(String(value));
+  const chipRef = useRef<HTMLLabelElement | null>(null);
+  const draftRef = useRef(draft);
+  const valueRef = useRef(value);
+  draftRef.current = draft;
+  valueRef.current = value;
 
   useEffect(() => {
     setDraft(String(value));
   }, [value]);
+
+  // Non-passive wheel so preventDefault actually blocks ScrollRegion / page scroll.
+  useEffect(() => {
+    const el = chipRef.current;
+    if (!el) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const dir = event.deltaY < 0 ? 1 : -1;
+      const base = Number.isFinite(Number(draftRef.current)) ? Number(draftRef.current) : valueRef.current;
+      const next = clampInt(base + dir, min, max);
+      onChange(next);
+      setDraft(String(next));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [min, max, onChange]);
 
   const commit = () => {
     const next = clampInt(Number(draft.trim()), min, max);
@@ -561,18 +599,13 @@ function ParamChip({ id, label, unit, value, min, max, onChange }: ParamChipProp
     setDraft(String(next));
   };
 
-  const nudge = (event: ReactWheelEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const dir = event.deltaY < 0 ? 1 : -1;
-    const base = Number.isFinite(Number(draft)) ? Number(draft) : value;
-    const next = clampInt(base + dir, min, max);
-    onChange(next);
-    setDraft(String(next));
-  };
-
   return (
-    <label className="param-chip" htmlFor={id} title={`${label} — scroll to adjust`}>
+    <label
+      ref={chipRef}
+      className="param-chip"
+      htmlFor={id}
+      title={`${label} — scroll anywhere on this chip to adjust`}
+    >
       <span className="param-chip-label">{label}</span>
       <input
         id={id}
@@ -587,7 +620,6 @@ function ParamChip({ id, label, unit, value, min, max, onChange }: ParamChipProp
             event.currentTarget.blur();
           }
         }}
-        onWheel={nudge}
         aria-label={`${label} (${unit})`}
       />
       <span className="param-chip-unit">{unit}</span>

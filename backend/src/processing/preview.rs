@@ -117,11 +117,14 @@ pub fn preview_load_bands(input: PreviewInput) -> AppResult<BandPreviewResult> {
     let segmentation_group_id = test.segmentation_auto_group.as_deref().ok_or_else(|| {
         AppError::Message("Test has no segmentation Auto group configured".to_owned())
     })?;
-    let segmentation_group = config.auto_groups.get(segmentation_group_id).ok_or_else(|| {
-        AppError::Message(format!(
-            "Unknown Auto channel group '{segmentation_group_id}'"
-        ))
-    })?;
+    let segmentation_group = config
+        .auto_groups
+        .get(segmentation_group_id)
+        .ok_or_else(|| {
+            AppError::Message(format!(
+                "Unknown Auto channel group '{segmentation_group_id}'"
+            ))
+        })?;
 
     let segmentation_table = preprocess_auto(&discovery.auto_path, segmentation_group)?;
     let reference_bands = match segment_reference_bands(
@@ -317,11 +320,14 @@ fn count_meter_matches(
         counts.insert(k, 0);
     }
     for row in &meter.rows {
-        let nearest = reference_bands.iter().enumerate().flat_map(|(band_index, band)| {
-            band.all_timestamps
-                .iter()
-                .map(move |timestamp| (band_index, (row.timestamp_epoch_seconds - timestamp).abs()))
-        });
+        let nearest = reference_bands
+            .iter()
+            .enumerate()
+            .flat_map(|(band_index, band)| {
+                band.all_timestamps.iter().map(move |timestamp| {
+                    (band_index, (row.timestamp_epoch_seconds - timestamp).abs())
+                })
+            });
         if let Some((band_index, difference)) = nearest.min_by_key(|(_, d)| *d) {
             if difference <= timestamp_match_seconds {
                 let band = &reference_bands[band_index];

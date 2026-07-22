@@ -83,18 +83,6 @@ pub fn write_report_workbook(
     let na_format = Format::new()
         .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xFFF2CC));
-    let error_green = Format::new()
-        .set_align(FormatAlign::Center)
-        .set_num_format("0.000")
-        .set_background_color(Color::RGB(0xA9F5A9));
-    let error_yellow = Format::new()
-        .set_align(FormatAlign::Center)
-        .set_num_format("0.000")
-        .set_background_color(Color::RGB(0xFFFF99));
-    let error_red = Format::new()
-        .set_align(FormatAlign::Center)
-        .set_num_format("0.000")
-        .set_background_color(Color::RGB(0xFF9999));
 
     let mut workbook = Workbook::new();
     {
@@ -151,7 +139,6 @@ pub fn write_report_workbook(
             &meter_number,
             &section_format,
             &na_format,
-            [&error_green, &error_yellow, &error_red],
         )?;
     }
     if let Some(thd) = &report.thd {
@@ -177,7 +164,6 @@ pub fn write_report_workbook(
             &meter_number,
             &section_format,
             &na_format,
-            [&error_green, &error_yellow, &error_red],
         )?;
     }
     if let Some(phase) = &report.phase {
@@ -203,7 +189,6 @@ pub fn write_report_workbook(
             &meter_number,
             &section_format,
             &na_format,
-            [&error_green, &error_yellow, &error_red],
         )?;
     }
     workbook.save(output_path)?;
@@ -233,7 +218,6 @@ fn write_metric_section_sheets(
     meter_number: &Format,
     section_format: &Format,
     na_format: &Format,
-    error_formats: [&Format; 3],
 ) -> AppResult<()> {
     {
         let worksheet = workbook.add_worksheet();
@@ -289,7 +273,6 @@ fn write_metric_section_sheets(
             meter_number,
             section_format,
             na_format,
-            error_formats,
         )?;
     }
     Ok(())
@@ -341,11 +324,7 @@ fn write_detail_sheet(
                 excel_row,
                 row,
                 if is_used { used_text } else { skipped_text },
-                if is_used {
-                    used_number
-                } else {
-                    skipped_number
-                },
+                if is_used { used_number } else { skipped_number },
                 &mut col_widths,
             )?;
             written.insert(*index, ());
@@ -366,7 +345,10 @@ fn write_detail_sheet(
         note_width(
             &mut col_widths,
             0,
-            label.lines().max_by_key(|line| line.len()).unwrap_or("Averaged Data"),
+            label
+                .lines()
+                .max_by_key(|line| line.len())
+                .unwrap_or("Averaged Data"),
         );
         worksheet.write_string_with_format(excel_row, 0, &label, average_text)?;
         worksheet.set_row_height(excel_row, 30.0)?;
@@ -478,7 +460,6 @@ fn write_comparison_sheet(
     meter_number: &Format,
     section_format: &Format,
     na_format: &Format,
-    error_formats: [&Format; 3],
 ) -> AppResult<()> {
     worksheet.set_name(sheet_name)?;
     worksheet.write_string_with_format(0, 0, "Source", header_format)?;
@@ -513,7 +494,7 @@ fn write_comparison_sheet(
             &comparison.auto_average,
             auto_text,
             auto_number,
-            None,
+            false,
             na_format,
             metric_kind,
             &mut col_widths,
@@ -526,7 +507,7 @@ fn write_comparison_sheet(
             &comparison.meter_average,
             meter_text,
             meter_number,
-            None,
+            false,
             na_format,
             metric_kind,
             &mut col_widths,
@@ -539,7 +520,7 @@ fn write_comparison_sheet(
             &comparison.error_percent,
             na_format,
             na_format,
-            Some(error_formats),
+            true,
             na_format,
             metric_kind,
             &mut col_widths,
@@ -560,7 +541,7 @@ fn write_comparison_values(
     values: &[Option<f64>],
     text_format: &Format,
     number_format: &Format,
-    error_formats: Option<[&Format; 3]>,
+    gradient_errors: bool,
     na_format: &Format,
     metric_kind: ComparisonMetricKind,
     col_widths: &mut [f64],
@@ -572,25 +553,16 @@ fn write_comparison_values(
         match value {
             Some(value) => {
                 note_width(col_widths, column as usize, &format!("{value:.3}"));
-                let format = if let Some(formats) = error_formats {
-                    let absolute = value.abs();
-                    let (green_max, yellow_max) = match metric_kind {
-                        // Percent error thresholds
-                        ComparisonMetricKind::ErrorPercent => (0.25, 0.5),
-                        // Angle delta in degrees
-                        ComparisonMetricKind::AngleDeltaDegrees => (1.0, 3.0),
-                    };
-                    if absolute < green_max {
-                        formats[0]
-                    } else if absolute < yellow_max {
-                        formats[1]
-                    } else {
-                        formats[2]
-                    }
+                if gradient_errors {
+                    let fill = error_gradient_rgb(value.abs(), metric_kind);
+                    let format = Format::new()
+                        .set_align(FormatAlign::Center)
+                        .set_num_format("0.000")
+                        .set_background_color(Color::RGB(fill));
+                    worksheet.write_number_with_format(row, column, *value, &format)?;
                 } else {
-                    number_format
-                };
-                worksheet.write_number_with_format(row, column, *value, format)?;
+                    worksheet.write_number_with_format(row, column, *value, number_format)?;
+                }
             }
             None => {
                 note_width(col_widths, column as usize, "N/A");
@@ -599,6 +571,46 @@ fn write_comparison_values(
         }
     }
     Ok(())
+}
+
+/// Excel-style 3-stop color scale on absolute magnitude: green → yellow → red.
+///
+/// Error %: 0% green, 0.5% yellow, 1%+ solid red.
+/// Δdeg: 0° green, 1.5° yellow, 3°+ solid red.
+fn error_gradient_rgb(absolute: f64, metric_kind: ComparisonMetricKind) -> u32 {
+    // Classic Excel conditional-format palette
+    const GREEN: (u8, u8, u8) = (0x63, 0xBE, 0x7B);
+    const YELLOW: (u8, u8, u8) = (0xFF, 0xEB, 0x84);
+    const RED: (u8, u8, u8) = (0xF8, 0x69, 0x6B);
+
+    let (mid, high) = match metric_kind {
+        ComparisonMetricKind::ErrorPercent => (0.5, 1.0),
+        ComparisonMetricKind::AngleDeltaDegrees => (1.5, 3.0),
+    };
+
+    let t = if !absolute.is_finite() || absolute <= 0.0 {
+        0.0
+    } else if absolute >= high {
+        1.0
+    } else if absolute <= mid {
+        0.5 * (absolute / mid)
+    } else {
+        0.5 + 0.5 * ((absolute - mid) / (high - mid))
+    };
+
+    let (r, g, b) = if t <= 0.5 {
+        lerp_rgb(GREEN, YELLOW, t / 0.5)
+    } else {
+        lerp_rgb(YELLOW, RED, (t - 0.5) / 0.5)
+    };
+    u32::from(r) << 16 | u32::from(g) << 8 | u32::from(b)
+}
+
+fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f64) -> (u8, u8, u8) {
+    let t = t.clamp(0.0, 1.0);
+    let blend =
+        |x: u8, y: u8| -> u8 { (f64::from(x) + (f64::from(y) - f64::from(x)) * t).round() as u8 };
+    (blend(a.0, b.0), blend(a.1, b.1), blend(a.2, b.2))
 }
 
 fn note_width(col_widths: &mut [f64], column: usize, text: &str) {
@@ -625,7 +637,12 @@ fn display_number(value: f64) -> String {
 }
 
 /// Two-line detail average label so the title is not cut off in the Time column.
-fn detail_average_label(amps: f64, load_percent: f64, reduce_label: &str, used_pts: usize) -> String {
+fn detail_average_label(
+    amps: f64,
+    load_percent: f64,
+    reduce_label: &str,
+    used_pts: usize,
+) -> String {
     format!(
         "Averaged Data - {}A\n({}%, {}: Used {} pts)",
         display_number(amps),
@@ -653,4 +670,34 @@ fn comparison_average_label(
         meter_used,
         auto_used
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::error_gradient_rgb;
+    use crate::processing::compare::ComparisonMetricKind;
+
+    #[test]
+    fn error_gradient_is_green_at_zero_and_red_at_high() {
+        let green = error_gradient_rgb(0.0, ComparisonMetricKind::ErrorPercent);
+        let mid = error_gradient_rgb(0.5, ComparisonMetricKind::ErrorPercent);
+        let red = error_gradient_rgb(1.0, ComparisonMetricKind::ErrorPercent);
+        let hotter = error_gradient_rgb(5.0, ComparisonMetricKind::ErrorPercent);
+        // Green channel high at zero, red channel high at max
+        assert!((green >> 8) & 0xFF > (green >> 16) & 0xFF);
+        assert_eq!(red, hotter);
+        assert_ne!(green, mid);
+        assert_ne!(mid, red);
+    }
+
+    #[test]
+    fn angle_gradient_uses_degree_scale() {
+        let mild = error_gradient_rgb(0.2, ComparisonMetricKind::AngleDeltaDegrees);
+        let bad = error_gradient_rgb(3.0, ComparisonMetricKind::AngleDeltaDegrees);
+        assert_ne!(mild, bad);
+        assert_eq!(
+            bad,
+            error_gradient_rgb(10.0, ComparisonMetricKind::AngleDeltaDegrees)
+        );
+    }
 }

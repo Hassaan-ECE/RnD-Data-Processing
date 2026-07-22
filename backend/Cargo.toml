@@ -1,6 +1,6 @@
 [package]
 name = "rnd-data-processing"
-version = "0.1.1"
+version = "0.1.2"
 default-run = "rnd-data-processing"
 description = "RnD Data Processing desktop app"
 authors = ["Syed Hassaan Shah"]

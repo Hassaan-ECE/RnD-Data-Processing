@@ -1,6 +1,6 @@
 use crate::error::{AppError, AppResult};
 use crate::processing::preprocess::{
-    circular_delta_degrees, MeasurementTable, PHASE_HEADERS, THD_HEADERS,
+    circular_delta_degrees, normalize_signed_degrees, MeasurementTable, PHASE_HEADERS, THD_HEADERS,
 };
 use crate::processing::segment::{
     map_reference_bands_to_table, match_meter_bands, BandRows, ReduceOptions,
@@ -104,8 +104,12 @@ pub fn build_metric_section(
             auto_table.source_path.display()
         )));
     }
-    let meter_bands =
-        match_meter_bands(&meter_table, reference_bands, timestamp_match_seconds, reduce)?;
+    let meter_bands = match_meter_bands(
+        &meter_table,
+        reference_bands,
+        timestamp_match_seconds,
+        reduce,
+    )?;
     let auto_bands = map_reference_bands_to_table(&auto_table, reference_bands)?;
     let mut comparisons = Vec::with_capacity(reference_bands.len());
 
@@ -191,11 +195,7 @@ pub fn build_phase_section(
     )
 }
 
-fn assert_headers(
-    table: &MeasurementTable,
-    expected: &[&str],
-    label: &str,
-) -> AppResult<()> {
+fn assert_headers(table: &MeasurementTable, expected: &[&str], label: &str) -> AppResult<()> {
     if table.headers() != expected {
         return Err(AppError::Message(format!(
             "{label} table headers are unexpected in {}",
@@ -212,6 +212,8 @@ pub fn average_rows(table: &MeasurementTable, indices: &[usize]) -> AppResult<Ve
             table.source_path.display()
         )));
     }
+    // Phase tables are angular: linear mean of 179° and −179° would wrongly give 0°.
+    let circular = table.headers() == PHASE_HEADERS;
     let column_count = table.headers().len();
     let mut averages = Vec::with_capacity(column_count);
     for column_index in 0..column_count {
@@ -222,11 +224,31 @@ pub fn average_rows(table: &MeasurementTable, indices: &[usize]) -> AppResult<Ve
             .collect::<Vec<_>>();
         if values.is_empty() {
             averages.push(None);
+        } else if circular {
+            averages.push(circular_mean_degrees(&values));
         } else {
             averages.push(Some(values.iter().sum::<f64>() / values.len() as f64));
         }
     }
     Ok(averages)
+}
+
+/// Circular mean of angles in degrees, result wrapped to (-180, 180].
+pub fn circular_mean_degrees(values: &[f64]) -> Option<f64> {
+    if values.is_empty() {
+        return None;
+    }
+    let n = values.len() as f64;
+    let mut sum_sin = 0.0;
+    let mut sum_cos = 0.0;
+    for value in values {
+        let radians = value.to_radians();
+        sum_sin += radians.sin();
+        sum_cos += radians.cos();
+    }
+    Some(normalize_signed_degrees(
+        (sum_sin / n).atan2(sum_cos / n).to_degrees(),
+    ))
 }
 
 pub fn calculate_error_percent(meter: Option<f64>, auto: Option<f64>) -> Option<f64> {
@@ -236,6 +258,8 @@ pub fn calculate_error_percent(meter: Option<f64>, auto: Option<f64>) -> Option<
     if auto.abs() <= NEAR_ZERO_REFERENCE {
         None
     } else {
+        // Formula is always (meter - auto) / auto * 100.
+        // When auto is negative, a "higher" algebraic meter can yield a negative Error%.
         Some((meter - auto) / auto * 100.0)
     }
 }
@@ -267,5 +291,22 @@ mod tests {
         assert!((circular_delta_degrees(-4.1, 4.0) + 8.1).abs() < 0.01);
         assert_eq!(calculate_angle_delta(Some(10.0), Some(8.0)), Some(2.0));
         assert_eq!(calculate_angle_delta(None, Some(8.0)), None);
+    }
+
+    #[test]
+    fn circular_mean_handles_wrap_around_180() {
+        use super::circular_mean_degrees;
+        let mean = circular_mean_degrees(&[179.0, -179.0]).expect("mean");
+        // Linear mean would be 0°; circular mean is near ±180°.
+        assert!(mean.abs() > 170.0, "got {mean}");
+    }
+
+    #[test]
+    fn error_percent_with_negative_auto_keeps_algebraic_formula() {
+        // meter=-9, auto=-10 => (-9 - -10)/(-10)*100 = -10%
+        assert_eq!(
+            calculate_error_percent(Some(-9.0), Some(-10.0)),
+            Some(-10.0)
+        );
     }
 }

@@ -712,9 +712,12 @@ svg {
 }
 
 /* Same footprint as a status-chip (±5%) — text field, no spinner chrome */
+/* Whole chip is a scroll hit-target for ± tolerance */
 .tolerance-chip {
-  cursor: text;
-  gap: 0;
+  gap: 0.12rem;
+  min-height: 1.65rem;
+  padding: 0.2rem 0.55rem;
+  cursor: ns-resize;
   user-select: none;
 }
 
@@ -735,12 +738,23 @@ svg {
   field-sizing: content;
   appearance: textfield;
   -moz-appearance: textfield;
+  cursor: ns-resize;
+}
+
+.tolerance-chip:hover {
+  background: #3a3a38;
+  color: #e8e8e6;
 }
 
 .tolerance-chip:focus-within {
   background: #3a3a38;
   color: #e8e8e6;
   box-shadow: 0 0 0 1px #5a8a9a;
+  cursor: text;
+}
+
+.tolerance-chip:focus-within input {
+  cursor: text;
 }
 
 /* Average method — params match segmented-control button size */
@@ -767,7 +781,7 @@ svg {
   color: #e8e8e6;
   font-size: 0.82rem;
   font-weight: 600;
-  cursor: text;
+  cursor: ns-resize;
   user-select: none;
 }
 
@@ -795,6 +809,7 @@ svg {
   field-sizing: content;
   appearance: textfield;
   -moz-appearance: textfield;
+  cursor: ns-resize;
 }
 
 .param-chip-unit {
@@ -806,6 +821,11 @@ svg {
 .param-chip:focus-within {
   background: #3a3a38;
   box-shadow: 0 0 0 1px #5a8a9a;
+  cursor: text;
+}
+
+.param-chip:focus-within input {
+  cursor: text;
 }
 
 .param-chip:focus-within .param-chip-label,
@@ -835,6 +855,13 @@ svg {
   display: flex;
   flex-direction: column;
   gap: 0.4rem;
+  transition: opacity 120ms ease;
+}
+
+/* Quiet refresh while average-method / tolerance preview reloads — no layout shift */
+.band-card-list-refreshing {
+  opacity: 0.72;
+  pointer-events: none;
 }
 
 .band-card {

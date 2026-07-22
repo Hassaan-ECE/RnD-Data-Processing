@@ -1,19 +1,20 @@
 # RnD Data Processing
 
-Shippable Windows desktop v0.1 for offline System 208V accuracy processing. The app compares Acuvim Real-Time meter captures with one calibrated Yokogawa Auto CSV and writes one Excel report per detected meter.
+Shippable Windows desktop v0.1.2 for offline System 208V accuracy processing. The app compares Acuvim Real-Time meter captures with one calibrated Yokogawa Auto CSV and writes one Excel report per detected meter.
 
 Repository: https://github.com/Hassaan-ECE/RnD-Data-Processing
 
-## Included in v0.1
+## Included in v0.1.2
 
 - One Tauri OS window with an in-app Hub and System 208V processor page.
 - Setup workbook, data folder, tolerance, and default/custom output selection.
 - Exact mappings: IIR / Meter 10 → Auto 4/5/6 + SIGMB; IIW / Meter 9 → Auto 1/2/3 + SIGMA.
 - RAM-only offline CSV preprocessing; no database, persistence layer, watcher, or realtime service.
 - Parallel Auto transforms and per-meter report processing where independent.
-- One workbook per meter with `Meter Detail`, `WM Detail`, and `Comparison` sheets.
-- When present next to each Real-Time file, companion `*.THD.csv` and `*.PhaseAngle.csv` add THD and Phase detail/comparison sheets vs Yokogawa `Uthd`/`Ithd`/`Phi`.
-- Open report(s), open output folder, current-user NSIS configuration, and updater UI/configuration.
+- One workbook per meter with core `Meter Detail`, `WM Detail`, and `Comparison` sheets.
+- When present next to each Real-Time file, companion `*.THD.csv` and `*.PhaseAngle.csv` add exact THD and Phase meter/WM/comparison sheet triplets vs Yokogawa `Uthd`/`Ithd`/`Phi`.
+- Live load-range preview, configurable standard-trim/fixed-window averaging, collapsible/resizable sidebar, and continuous comparison gradients.
+- Open report(s), open output folder, current-user NSIS packaging, and a published signed updater flow.
 
 ## Prerequisites
 
@@ -65,7 +66,10 @@ Add `--output "C:\Path\To\Reports"` for a custom output directory.
 - Auto data is read once, kept in memory, and transformed into configured channel groups.
 - Load rows are assigned to the nearest setup target inside the selected ± tolerance.
 - Acuvim rows are matched to Auto band timestamps within the configured 60-second window.
-- Bands with 5–9 samples trim one point from each edge; bands with 10+ samples trim 10% from each edge when at least three rows remain. Smaller bands remain intact.
+- Standard trim skips a configurable number of rows from each band edge (default: 2 start and 2 end). Fixed window skips the configured tail and then takes up to the requested number of preceding points (default: 20); short bands use the available points rather than inventing data.
+- Auto reactive power prefers signed Yokogawa `Q-* / 1000`; only missing/NAN Q cells use the magnitude fallback `sqrt(S² - P²)`, and materially invalid triangles remain `N/A`.
+- Phase tables use circular means. Missing phase voltages clear the corresponding current displacement instead of retaining a mislabeled raw angle.
+- Auto total THD is the arithmetic mean of the three phase THD percentages as a reporting convention, not a physically combined waveform THD.
 - Error % is `(meter - auto) / auto * 100`. Near-zero Auto denominators are written as `N/A`, never a fabricated zero.
 - Missing Auto files, missing meters, malformed numbers, incomplete setup schedules, empty bands, and invalid output paths return explicit errors.
 
@@ -89,7 +93,7 @@ Small representative CSV/setup fixtures live under `fixtures/`; large lab dumps 
 Signed release build (requires release signing secrets):
 
 ```powershell
-bun run build:desktop
+bun run build:desktop:signed
 ```
 
 Local unsigned two-phase build:
@@ -106,11 +110,12 @@ The updater endpoint is configured as:
 https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json
 ```
 
-**pubkey/signing pending first release:** `bun run build:desktop` reaches updater signing and requires `TAURI_SIGNING_PRIVATE_KEY` plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Confirm or replace the updater public key with the production keypair, keep both values only in secure release secrets, then publish the signed installer, signature, and `latest.json`. Until then, use `bun run build:desktop:unsigned` for a local installable smoke artifact. Never commit private keys, installers, or `.sig` files.
+The production updater public key is configured. GitHub Releases carry the signed installer, `.sig`, and `latest.json` (see latest release). The signed helper reads the private key from `%USERPROFILE%\.tauri\rnd-data-processing-updater.key`, removes any current-version artifact before building, and refuses to sign after a failed build. Use `bun run build:desktop:unsigned` only for local installable smoke testing. Never commit private keys, installers, updater metadata, or `.sig` files.
 
 ## Documentation
 
-- `docs/COLUMN_MAPPING.md` — Acuvim ↔ Yokogawa Auto column map (Real-Time, THD, Phase) for double-checking reports.
+- `docs/System_208V_Column_Mapping_and_Math.docx` — **R&D review preferred:** column map + plain-text equations (always readable).
+- `docs/COLUMN_MAPPING.md` — same content for repo/git; math may not render in all Markdown viewers.
 - `docs/HANDOFF.md` — implementation status, decisions, smoke evidence, and release notes.
 - `docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md` — product design.
 - `docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md` — implementation plan.

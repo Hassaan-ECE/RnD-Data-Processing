@@ -74,6 +74,37 @@ fn auto_preprocess_splits_exact_groups_and_removes_junk_columns() {
     assert!(iir.ignored_source_columns > 100);
     assert!((iir.value(&iir.rows[0], "I(A)").unwrap() - 1400.0).abs() < 10.0);
     assert!((iir.value(&iir.rows[0], "P(kW)").unwrap() - 515.0).abs() < 5.0);
+    // Prove Q comes from Q-* (var→kvar): match first Auto row SIGMB/SIGMA exactly.
+    let raw = fs::read_to_string(&auto_path).expect("auto text");
+    let mut lines = raw.lines();
+    let header = lines.next().expect("header");
+    let first = lines.next().expect("first data row");
+    let cols: Vec<&str> = header.split(',').collect();
+    let cells: Vec<&str> = first.split(',').collect();
+    let q_sigmb = cols
+        .iter()
+        .position(|c| c.eq_ignore_ascii_case("Q-SIGMB"))
+        .and_then(|i| cells.get(i))
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .expect("Q-SIGMB");
+    let q_sigma = cols
+        .iter()
+        .position(|c| c.eq_ignore_ascii_case("Q-SIGMA"))
+        .and_then(|i| cells.get(i))
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .expect("Q-SIGMA");
+    let iir_q = iir.value(&iir.rows[0], "Q(kvar)").expect("IIR Auto Q");
+    let iiw_q = iiw.value(&iiw.rows[0], "Q(kvar)").expect("IIW Auto Q");
+    assert!(
+        (iir_q - q_sigmb / 1000.0).abs() < 1e-6,
+        "IIR Q {iir_q} should be Q-SIGMB/1000 {}",
+        q_sigmb / 1000.0
+    );
+    assert!(
+        (iiw_q - q_sigma / 1000.0).abs() < 1e-6,
+        "IIW Q {iiw_q} should be Q-SIGMA/1000 {}",
+        q_sigma / 1000.0
+    );
     assert!((iiw.value(&iiw.rows[0], "I(A)").unwrap() - 607.0).abs() < 10.0);
     assert!((iiw.value(&iiw.rows[0], "ULL(V)").unwrap() - 501.0).abs() < 5.0);
     assert_eq!(iiw.value(&iiw.rows[0], "UA(V)"), None);
@@ -142,6 +173,67 @@ fn thd_and_phase_companions_preprocess_against_auto() {
         (meter_phi - auto_phi).abs() < 2.0,
         "meter {meter_phi} vs auto {auto_phi}"
     );
+}
+
+#[test]
+fn auto_q_uses_signed_columns_and_triangle_fallback_rules() {
+    use rnd_data_processing_lib::processing::preprocess::{preprocess_auto_data, read_auto_csv};
+
+    let config = load_embedded_config().expect("config");
+    let group = &config.auto_groups["sigmb_456"];
+    let temp = tempdir().expect("temp");
+
+    // Minimal Auto header with required columns for sigmb_456 (phases 4/5/6 + SIGMB).
+    let header = "StoreNo,Date,Time,Millisecond,Uac-4,Uac-5,Uac-6,Iac-4,Iac-5,Iac-6,Iac-SIGMB,P-4,P-5,P-6,P-SIGMB,Q-4,Q-5,Q-6,Q-SIGMB,S-4,S-5,S-6,S-SIGMB,PF-4,PF-5,PF-6,PF-SIGMB,FreqU-4";
+    // Row1: signed Q in var → kvar; Q-SIGMB = -35000 var → -35 kvar
+    let row_signed = "1,2026/07/21,09:31:08,0,123,123,123,100,100,100,100,1000,1000,1000,3000,-10000,-12000,-13000,-35000,2000,2000,2000,6000,0.99,0.99,0.99,0.99,60";
+    // Row2: blank Q-* → triangle fallback; S=5kVA, P=3kW after /1000 → Q=4 kvar per phase if S/P in W... wait
+    // P and S are scaled /1000: P-4=3000 W → 3 kW, S-4=5000 VA → 5 kVA → Q = 4 kvar
+    let row_fallback = "2,2026/07/21,09:31:18,0,123,123,123,100,100,100,100,3000,3000,3000,9000,NAN,NAN,NAN,NAN,5000,5000,5000,15000,0.99,0.99,0.99,0.99,60";
+    // Row3: invalid triangle |P| > |S| materially → phase Q N/A when Q blank
+    let row_invalid = "3,2026/07/21,09:31:28,0,123,123,123,100,100,100,100,5000,5000,5000,15000,NAN,NAN,NAN,NAN,3000,3000,3000,9000,0.99,0.99,0.99,0.99,60";
+
+    let path = temp.path().join("Auto_synthetic.CSV");
+    fs::write(
+        &path,
+        format!("{header}\n{row_signed}\n{row_fallback}\n{row_invalid}\n"),
+    )
+    .expect("write synthetic");
+
+    let raw = read_auto_csv(&path).expect("read");
+    let table = preprocess_auto_data(&raw, group).expect("preprocess");
+    assert_eq!(table.rows.len(), 3);
+
+    // Signed instrument Q
+    assert!((table.value(&table.rows[0], "QA(kvar)").unwrap() + 10.0).abs() < 1e-9);
+    assert!((table.value(&table.rows[0], "Q(kvar)").unwrap() + 35.0).abs() < 1e-9);
+
+    // Triangle fallback when Q is NAN: sqrt(5^2 - 3^2) = 4
+    assert!((table.value(&table.rows[1], "QA(kvar)").unwrap() - 4.0).abs() < 1e-6);
+    assert!((table.value(&table.rows[1], "Q(kvar)").unwrap() - 12.0).abs() < 1e-6);
+
+    // Invalid triangle → no Q
+    assert_eq!(table.value(&table.rows[2], "QA(kvar)"), None);
+    assert_eq!(table.value(&table.rows[2], "Q(kvar)"), None);
+}
+
+#[test]
+fn phase_missing_voltage_clears_current_displacement() {
+    use rnd_data_processing_lib::processing::preprocess::preprocess_acuvim_phase;
+
+    let temp = tempdir().expect("temp");
+    let path = temp.path().join("phase.csv");
+    // UA present, UB missing → IB must become blank after conversion, not raw 240.
+    fs::write(
+        &path,
+        "Time,UA(deg),UB(deg),UC(deg),IA_UA(deg),IB_UA(deg),IC_UA(deg)\n\
+7/21/2026 9:31:06 AM,0,,120,355.9,240,115.9\n\
+EOF\n",
+    )
+    .expect("write");
+    let table = preprocess_acuvim_phase(&path).expect("phase");
+    assert!((table.value(&table.rows[0], "IA_UA(deg)").unwrap() + 4.1).abs() < 0.05);
+    assert_eq!(table.value(&table.rows[0], "IB_UA(deg)"), None);
 }
 
 #[test]

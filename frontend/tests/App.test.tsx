@@ -8,6 +8,7 @@ const backend = vi.hoisted(() => ({
   getAppVersion: vi.fn(),
   loadSetupFile: vi.fn(),
   openPath: vi.fn(),
+  previewLoadBands: vi.fn(),
   runSystem208vReport: vi.fn(),
   scanDataFolder: vi.fn(),
 }));
@@ -33,7 +34,7 @@ describe("RnD Data Processing UI", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     window.localStorage.clear();
-    backend.getAppVersion.mockResolvedValue("0.1.0");
+    backend.getAppVersion.mockResolvedValue("0.1.2");
     backend.chooseSetupFile.mockResolvedValue(setupPath);
     backend.chooseDataFolder.mockResolvedValue(dataFolder);
     backend.chooseOutputFolder.mockResolvedValue("C:\\Lab\\Custom Reports");
@@ -44,6 +45,14 @@ describe("RnD Data Processing UI", () => {
         loadPercent: 100 - index * 7.5,
         targetAmps: 1395 - index * 104.625,
       })),
+    });
+    backend.previewLoadBands.mockResolvedValue({
+      setupSheet: "Sheet1",
+      tolerancePercent: 5,
+      reduce: { mode: "trim", skipStart: 2, skipEnd: 2, windowSize: 20 },
+      hasData: false,
+      points: [],
+      warnings: [],
     });
     backend.scanDataFolder.mockResolvedValue({
       dataFolder,

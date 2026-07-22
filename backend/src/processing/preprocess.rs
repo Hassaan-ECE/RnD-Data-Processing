@@ -220,15 +220,11 @@ pub fn preprocess_acuvim_phase(path: impl AsRef<Path>) -> AppResult<MeasurementT
             let ia = row.values.get(ia_i).copied().flatten();
             let ib = row.values.get(ib_i).copied().flatten();
             let ic = row.values.get(ic_i).copied().flatten();
-            if let Some(value) = displacement_degrees(ia, ua) {
-                row.values[ia_i] = Some(value);
-            }
-            if let Some(value) = displacement_degrees(ib, ub) {
-                row.values[ib_i] = Some(value);
-            }
-            if let Some(value) = displacement_degrees(ic, uc) {
-                row.values[ic_i] = Some(value);
-            }
+            // Always assign conversion result (including None) so a missing voltage
+            // never leaves a raw UA-relative current angle mislabeled as displacement.
+            row.values[ia_i] = displacement_degrees(ia, ua);
+            row.values[ib_i] = displacement_degrees(ib, ub);
+            row.values[ic_i] = displacement_degrees(ic, uc);
             // Keep voltage phasors as signed absolute angles for wiring checks.
             if let Some(Some(value)) = row.values.get_mut(ua_i) {
                 *value = normalize_signed_degrees(*value);
@@ -363,7 +359,13 @@ pub fn preprocess_auto_thd(
             ],
         });
     }
-    validate_table(path, &THD_HEADERS, rows, raw.ignored_source_columns, "U_THD(%)")
+    validate_table(
+        path,
+        &THD_HEADERS,
+        rows,
+        raw.ignored_source_columns,
+        "U_THD(%)",
+    )
 }
 
 pub fn preprocess_auto_phase(
@@ -405,12 +407,9 @@ pub fn preprocess_auto_phase(
                 None,
                 None,
                 None,
-                numeric(&format!("Phi-{phase_a}"))?
-                    .map(|value| normalize_signed_degrees(-value)),
-                numeric(&format!("Phi-{phase_b}"))?
-                    .map(|value| normalize_signed_degrees(-value)),
-                numeric(&format!("Phi-{phase_c}"))?
-                    .map(|value| normalize_signed_degrees(-value)),
+                numeric(&format!("Phi-{phase_a}"))?.map(|value| normalize_signed_degrees(-value)),
+                numeric(&format!("Phi-{phase_b}"))?.map(|value| normalize_signed_degrees(-value)),
+                numeric(&format!("Phi-{phase_c}"))?.map(|value| normalize_signed_degrees(-value)),
             ],
         });
     }
@@ -555,12 +554,18 @@ pub fn preprocess_auto_data(
         let apparent_total = scale(numeric(&format!("S-{}", group.total))?, 1.0 / 1000.0)
             .or_else(|| sum_three(apparent_power));
 
+        // Prefer Yokogawa Q-* (var → kvar). Fall back to triangle |Q| only if blank/NAN.
         let reactive_values = [
-            reactive_power(apparent_power[0], real_power[0]),
-            reactive_power(apparent_power[1], real_power[1]),
-            reactive_power(apparent_power[2], real_power[2]),
+            scale(numeric(&format!("Q-{phase_a}"))?, 1.0 / 1000.0)
+                .or_else(|| reactive_power(apparent_power[0], real_power[0])),
+            scale(numeric(&format!("Q-{phase_b}"))?, 1.0 / 1000.0)
+                .or_else(|| reactive_power(apparent_power[1], real_power[1])),
+            scale(numeric(&format!("Q-{phase_c}"))?, 1.0 / 1000.0)
+                .or_else(|| reactive_power(apparent_power[2], real_power[2])),
         ];
-        let reactive_total = reactive_power(apparent_total, real_total);
+        let reactive_total = scale(numeric(&format!("Q-{}", group.total))?, 1.0 / 1000.0)
+            .or_else(|| sum_three(reactive_values))
+            .or_else(|| reactive_power(apparent_total, real_total));
         let power_factors = [
             numeric(&format!("PF-{phase_a}"))?,
             numeric(&format!("PF-{phase_b}"))?,
@@ -718,6 +723,7 @@ fn required_auto_columns(group: &AutoChannelGroup) -> Vec<String> {
             format!("Uac-{phase}"),
             format!("Iac-{phase}"),
             format!("P-{phase}"),
+            format!("Q-{phase}"),
             format!("S-{phase}"),
             format!("PF-{phase}"),
         ]);
@@ -725,6 +731,7 @@ fn required_auto_columns(group: &AutoChannelGroup) -> Vec<String> {
     columns.extend([
         format!("Iac-{}", group.total),
         format!("P-{}", group.total),
+        format!("Q-{}", group.total),
         format!("S-{}", group.total),
         format!("PF-{}", group.total),
         format!("FreqU-{}", group.phases[0]),
@@ -824,11 +831,25 @@ fn sum_three(values: [Option<f64>; 3]) -> Option<f64> {
     Some(a + b + c)
 }
 
+/// Fallback when Auto Q-* is missing/NAN: magnitude-only triangle Q from S and P.
+/// Returns None if the power triangle is materially invalid (|P| > |S| beyond rounding).
 fn reactive_power(apparent: Option<f64>, real: Option<f64>) -> Option<f64> {
     let (Some(apparent), Some(real)) = (apparent, real) else {
         return None;
     };
-    Some((apparent.powi(2) - real.powi(2)).abs().sqrt())
+    let ss = apparent * apparent;
+    let pp = real * real;
+    let residual = ss - pp;
+    if residual >= 0.0 {
+        return Some(residual.sqrt());
+    }
+    // Allow tiny floating-point overshoot of |P| past |S|; otherwise N/A.
+    let scale = ss.abs().max(1.0);
+    if residual.abs() <= scale * 1.0e-6 {
+        Some(0.0)
+    } else {
+        None
+    }
 }
 
 fn ratio(numerator: Option<f64>, denominator: Option<f64>) -> Option<f64> {

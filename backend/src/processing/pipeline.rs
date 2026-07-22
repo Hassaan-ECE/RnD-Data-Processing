@@ -8,9 +8,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::load_embedded_config;
 use crate::error::{AppError, AppResult};
-use crate::processing::compare::{
-    build_meter_report_data, build_phase_section, build_thd_section,
-};
+use crate::processing::compare::{build_meter_report_data, build_phase_section, build_thd_section};
 use crate::processing::discover::discover_data_folder;
 use crate::processing::excel_write::write_report_workbook;
 use crate::processing::preprocess::{

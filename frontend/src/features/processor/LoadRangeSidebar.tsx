@@ -1,4 +1,4 @@
-import { useEffect, useState, type MouseEvent as ReactMouseEvent, type WheelEvent as ReactWheelEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react";
 
 import type { BandHealth, BandPreviewResult, LoadPointPreview } from "../../integrations/tauri/backend";
 import { ScrollRegion } from "../../shared/ui/ScrollRegion";
@@ -107,25 +107,41 @@ export function LoadRangeSidebar({
   onWidthChange,
 }: LoadRangeSidebarProps) {
   const [toleranceDraft, setToleranceDraft] = useState(() => formatToleranceDisplay(tolerance));
+  const toleranceChipRef = useRef<HTMLLabelElement | null>(null);
+  const toleranceDraftRef = useRef(toleranceDraft);
+  const toleranceRef = useRef(tolerance);
+  toleranceDraftRef.current = toleranceDraft;
+  toleranceRef.current = tolerance;
 
   useEffect(() => {
     setToleranceDraft(formatToleranceDisplay(tolerance));
   }, [tolerance]);
 
+  // Non-passive wheel so preventDefault blocks sidebar/page scroll while adjusting.
+  useEffect(() => {
+    const el = toleranceChipRef.current;
+    if (!el) {
+      return;
+    }
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      const step = event.shiftKey ? 0.1 : 1;
+      const dir = event.deltaY < 0 ? 1 : -1;
+      const base = Number.isFinite(Number(toleranceDraftRef.current))
+        ? Number(toleranceDraftRef.current)
+        : toleranceRef.current;
+      const next = clampTolerance(base + dir * step);
+      onToleranceChange(next);
+      setToleranceDraft(formatToleranceDisplay(next));
+    };
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
+  }, [onToleranceChange]);
+
   const commitToleranceDraft = () => {
     const parsed = Number(toleranceDraft.trim().replace(/%/g, ""));
     const next = clampTolerance(parsed);
-    onToleranceChange(next);
-    setToleranceDraft(formatToleranceDisplay(next));
-  };
-
-  const nudgeTolerance = (event: ReactWheelEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    const step = event.shiftKey ? 0.1 : 1;
-    const dir = event.deltaY < 0 ? 1 : -1;
-    const base = Number.isFinite(Number(toleranceDraft)) ? Number(toleranceDraft) : tolerance;
-    const next = clampTolerance(base + dir * step);
     onToleranceChange(next);
     setToleranceDraft(formatToleranceDisplay(next));
   };
@@ -169,9 +185,10 @@ export function LoadRangeSidebar({
           <h2>Load ranges</h2>
           <div className="sidebar-heading-actions">
             <label
+              ref={toleranceChipRef}
               className="status-chip tolerance-chip"
               htmlFor="sidebar-tolerance-input"
-              title="Match tolerance — scroll to adjust, Shift+scroll for 0.1"
+              title="Match tolerance — scroll anywhere on this chip to adjust (Shift+scroll for 0.1)"
             >
               <span aria-hidden="true">±</span>
               <input
@@ -181,7 +198,7 @@ export function LoadRangeSidebar({
                 value={toleranceDraft}
                 size={Math.max(1, toleranceDraft.length || 1)}
                 onChange={(event) => {
-                  // Allow intermediate edits; commit on blur / Enter / wheel.
+                  // Allow intermediate edits; commit on blur / Enter.
                   const raw = event.target.value.replace(/[^\d.]/g, "");
                   setToleranceDraft(raw);
                 }}
@@ -191,7 +208,6 @@ export function LoadRangeSidebar({
                     event.currentTarget.blur();
                   }
                 }}
-                onWheel={nudgeTolerance}
                 aria-label="Match tolerance percent"
               />
               <span aria-hidden="true">%</span>
@@ -203,7 +219,8 @@ export function LoadRangeSidebar({
       <ScrollRegion className="sidebar-scroll" contentClassName="sidebar-scroll-content" aria-label="Load range list">
         {!hasSetup ? <p className="help-text">Select a setup workbook to list load points.</p> : null}
 
-        {loading ? <p className="help-text">Updating band counts…</p> : null}
+        {/* Only show loading copy when the list is empty — never shove cards down mid-refresh. */}
+        {loading && !preview?.points?.length ? <p className="help-text">Updating band counts…</p> : null}
         {error ? (
           <p className="inline-error" role="alert">
             {error}
@@ -221,7 +238,10 @@ export function LoadRangeSidebar({
         ) : null}
 
         {preview?.points?.length ? (
-          <div className="band-card-list">
+          <div
+            className={`band-card-list${loading ? " band-card-list-refreshing" : ""}`}
+            aria-busy={loading || undefined}
+          >
             {preview.points.map((point) => (
               <PointCard
                 key={`${point.loadPercent}-${point.targetAmps}`}

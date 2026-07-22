@@ -56,6 +56,8 @@ export function ScrollRegion({
     );
   }, []);
 
+  // Observe the viewport once — do not rebind when `children` identity changes
+  // (that was resetting layout cues and contributing to sidebar jump on preview refresh).
   useEffect(() => {
     updateScrollCue();
     const element = scrollRef.current;
@@ -68,7 +70,11 @@ export function ScrollRegion({
       observer.observe(element.firstElementChild);
     }
     return () => observer.disconnect();
-  }, [updateScrollCue, children]);
+  }, [updateScrollCue]);
+
+  useEffect(() => {
+    updateScrollCue();
+  }, [children, updateScrollCue]);
 
   const onScroll: UIEventHandler<HTMLDivElement> = () => {
     updateScrollCue();
