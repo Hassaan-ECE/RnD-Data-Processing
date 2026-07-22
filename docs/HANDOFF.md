@@ -109,14 +109,7 @@ Observed results:
 - Production frontend built successfully: 1,783 modules, 212.17 kB JavaScript before gzip.
 - Desktop-feature Rust check completed successfully.
 
-Evidence files:
-
-```text
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\build-and-tests.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\frontend-ui.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\pipeline-fixtures.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\final-verification.log
-```
+The exact command output was captured during verification; durable observations are summarized above.
 
 ## Real sample smoke test
 
@@ -143,13 +136,7 @@ C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208
 
 `openpyxl` reopened both workbooks and asserted the exact sheet order `Meter Detail`, `WM Detail`, `Comparison`. Each workbook contained 394 Meter Detail rows, 431 WM Detail rows, and a nonempty 66-row Comparison sheet.
 
-Evidence files:
-
-```text
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\real-sample-run-1.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\real-sample-run-2.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\workbook-inspection.log
-```
+The exact pipeline and workbook-inspection output was captured during verification; durable observations are summarized above.
 
 ## Desktop smoke test
 
@@ -159,14 +146,7 @@ C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\workb
 - A live Hub screenshot was captured with Windows `PrintWindow`.
 - The React browser-like test separately exercised Hub → processor → Back and all required controls/actions.
 
-Evidence files:
-
-```text
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\desktop-launch-1.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\desktop-launch-2.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\desktop-launch-3.log
-C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\desktop-launch-hub.png
-```
+Startup logs and the live Hub screenshot were captured during verification; durable observations are summarized above.
 
 ## Installer and updater
 
@@ -193,7 +173,7 @@ Size: 4,315,926 bytes
 
 The tested `bun run build:desktop:unsigned` helper completed with exit code `0`. Its first bundle attempt reproduced OS error 1224; the bounded helper cleaned the partial output, waited, and succeeded on attempt 2. The final artifact size was `4,315,926` bytes.
 
-The fallback intentionally skipped signing and emitted no `.sig`. Tauri also warned that `__TAURI_BUNDLE_TYPE` was not found while rebundling the cached binary, so this local installer validates NSIS creation but is not the production updater artifact. Exact helper output is in `C:\Users\SYEDH~1.SHA\AppData\Local\Temp\grok-goal-5873677f4c0c\implementer\desktop-unsigned-script-3.log`.
+The fallback intentionally skipped signing and emitted no `.sig`. Tauri also warned that `__TAURI_BUNDLE_TYPE` was not found while rebundling the cached binary, so this local installer validates NSIS creation but is not the production updater artifact. The exact helper output was captured during verification; the durable result is summarized above.
 
 **pubkey/signing pending first release:** confirm or replace the configured public key with the production keypair, store `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only in release secrets, resolve the combined-build Windows lock/Tauri bundle-type warning, then run `bun run build:desktop` and publish the signed installer, signature, and `latest.json` at the configured GitHub Release endpoint.
 
