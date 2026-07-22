@@ -1,12 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { FileSpreadsheet } from "lucide-react";
+import { FileSpreadsheet, MoreHorizontal } from "lucide-react";
 
-import {
-  chooseSetupFile,
-  isTauriRuntime,
-  loadSetupFile,
-  type SetupLoadResult,
-} from "../../integrations/tauri/backend";
+import { chooseSetupFile, isTauriRuntime, loadSetupFile } from "../../integrations/tauri/backend";
 
 interface HubPageProps {
   setupPath: string;
@@ -25,27 +20,24 @@ export function HubPage({
   announce,
   updateControl,
 }: HubPageProps) {
-  const [setupSummary, setSetupSummary] = useState<SetupLoadResult | null>(null);
   const [setupError, setSetupError] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     if (!setupPath || !isTauriRuntime()) {
-      setSetupSummary(null);
+      setSetupError("");
       return;
     }
     let active = true;
     setLoading(true);
     loadSetupFile(setupPath)
-      .then((result) => {
+      .then(() => {
         if (active) {
-          setSetupSummary(result);
           setSetupError("");
         }
       })
       .catch((error) => {
         if (active) {
-          setSetupSummary(null);
           setSetupError(errorMessage(error));
         }
       })
@@ -73,20 +65,33 @@ export function HubPage({
 
   return (
     <div className="page-stack hub-page">
-      <section className="panel setup-panel" aria-labelledby="setup-heading">
-        <div className="section-heading">
-          <h2 id="setup-heading">Setup workbook</h2>
-          {setupSummary ? (
-            <span className="status-chip success">{setupSummary.targets.length} targets</span>
-          ) : null}
-        </div>
-        <div className="path-picker">
-          <div className="path-value" title={setupPath || "No setup workbook selected"}>
+      <header className="hub-header">
+        <div className="hub-header-side" aria-hidden="true" />
+        <h1 id="test-selection-heading" className="test-selection-heading">
+          Test Selection
+        </h1>
+        <div className="hub-header-side hub-header-end">{updateControl}</div>
+      </header>
+
+      <section className="panel setup-panel" aria-label="Setup file">
+        <div className="path-row">
+          <span className="path-row-label">Setup File</span>
+          <div
+            className={`path-value${setupPath ? "" : " path-value-empty"}`}
+            title={setupPath || "No setup workbook selected"}
+          >
             <FileSpreadsheet aria-hidden="true" />
-            <span>{setupPath || "No setup file selected"}</span>
+            <span>{setupPath || "No setup workbook selected"}</span>
           </div>
-          <button className="secondary-button" type="button" onClick={chooseSetup} disabled={loading}>
-            {loading ? "Reading..." : "Browse setup file"}
+          <button
+            className="path-row-menu-button"
+            type="button"
+            onClick={chooseSetup}
+            disabled={loading}
+            aria-label="Browse setup file"
+            title="Browse setup file"
+          >
+            <MoreHorizontal aria-hidden="true" />
           </button>
         </div>
         {setupError ? (
@@ -110,8 +115,6 @@ export function HubPage({
           </button>
         ))}
       </section>
-
-      <div className="hub-footer">{updateControl}</div>
     </div>
   );
 }

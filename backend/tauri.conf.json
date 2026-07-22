@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Data Processing",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "identifier": "com.te.lab.rnd-data-processing",
   "build": {
     "beforeDevCommand": "bun --bun vite --config frontend/vite.config.ts",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Data Processing v0.1.0",
+        "title": "Data Processing v0.1.1",
         "width": 900,
         "height": 740,
         "minWidth": 520,
@@ -41,7 +41,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDk1NkRBNzhEOUQ3RUU0MDQKUldRRTVINmRqYWR0bFI1dnR5VHJKV1gzNjJEU09FRzNLR21QZk0zRVZEMGVmRzNFN0xxOVRTVm8K",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFOEEwOEFGNkM4MTI2Q0IKUldUTEpvRnNyd2lLL3RBaThqV0dOa1dUa0NEMDBZZ1l4bnVyMGZpK2xUMk82UExGMkVGYTZ3MnMK",
       "endpoints": [
         "https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json"
       ],

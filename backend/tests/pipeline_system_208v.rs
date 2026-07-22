@@ -89,7 +89,17 @@ fn full_pipeline_writes_and_reopens_two_reports_twice() {
             let mut workbook = open_workbook_auto(&report_path).expect("report should reopen");
             assert_eq!(
                 workbook.sheet_names(),
-                ["Meter Detail", "WM Detail", "Comparison"]
+                [
+                    "Meter Detail",
+                    "WM Detail",
+                    "Comparison",
+                    "THD Meter Detail",
+                    "THD WM Detail",
+                    "THD Comparison",
+                    "Phase Meter Detail",
+                    "Phase WM Detail",
+                    "Phase Comparison",
+                ]
             );
             let comparison = workbook
                 .worksheet_range("Comparison")

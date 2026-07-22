@@ -20,6 +20,7 @@ vi.mock("../src/integrations/tauri/backend", () => ({
 }));
 
 vi.mock("@tauri-apps/plugin-updater", () => ({ check: updater.check }));
+vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 
 import { App } from "../src/app/App";
 
@@ -74,7 +75,8 @@ describe("RnD Data Processing UI", () => {
   it("drives Hub to System 208V, generates reports, opens outputs, and returns Back", async () => {
     render(<App />);
 
-    expect(screen.getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
+    // No newer release in tests — update CTA stays hidden until check finds one.
+    expect(screen.queryByRole("button", { name: "Update available" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "System 208V" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "System 415V" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Sub-feed 208V" })).toBeDisabled();
@@ -85,20 +87,19 @@ describe("RnD Data Processing UI", () => {
       await flushAsyncWork();
     });
     expect(await screen.findByText(setupPath)).toBeInTheDocument();
-    expect(await screen.findByText("13 targets")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Browse setup file" })).toBeEnabled());
 
     fireEvent.click(screen.getByRole("button", { name: "System 208V" }));
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "System 208V" })).toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
-    expect(screen.getByLabelText("Match tolerance (±%)")).toHaveValue(5);
+    expect(screen.queryByRole("button", { name: "Update available" })).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Match tolerance percent")).toHaveValue("5");
     expect(screen.getByRole("button", { name: "Generate reports" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Open report\(s\)/i })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Open folder/i })).toBeDisabled();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Browse" }));
+      fireEvent.click(screen.getByRole("button", { name: "Browse data folder" }));
     });
     expect(await screen.findByText("Auto_20260721093057.CSV")).toBeInTheDocument();
     expect(screen.getByText("IIR / Meter 10")).toBeInTheDocument();
@@ -132,7 +133,7 @@ describe("RnD Data Processing UI", () => {
     await waitFor(() => expect(backend.openPath).toHaveBeenCalledWith(outputFolder));
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(await screen.findByText("13 targets")).toBeInTheDocument();
+    expect(await screen.findByText(setupPath)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Browse setup file" })).toBeEnabled());
   });
 });

@@ -71,7 +71,8 @@ cargo run --manifest-path backend/Cargo.toml --bin rnd-pipeline -- --setup "C:\P
 ## Deferred by design
 
 - System 415V, Sub-feed 208V, and Sub-feed 415V processing.
-- Phase angle, THD, live folder watching, database storage, and advanced trim controls.
+- Live folder watching, database storage, and advanced trim controls.
+- Full odd/even THD, crest factor, and K-factor deep columns (primary THD % and phase Δdeg are included).
 - Pixel-perfect replication of the gold workbook color/gradient styling.
 - Signed updater publication and GitHub Release creation.
 

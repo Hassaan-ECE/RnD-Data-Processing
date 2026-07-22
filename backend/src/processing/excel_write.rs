@@ -5,8 +5,10 @@ use std::path::Path;
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet};
 
 use crate::error::AppResult;
-use crate::processing::compare::{average_rows, MeterReportData};
-use crate::processing::preprocess::{MeasurementRow, MeasurementTable, NUMERIC_HEADERS};
+use crate::processing::compare::{
+    average_rows, ComparisonMetricKind, MeterReportData, MetricReportSection,
+};
+use crate::processing::preprocess::{MeasurementRow, MeasurementTable};
 use crate::processing::segment::BandRows;
 
 pub fn write_report_workbook(
@@ -137,7 +139,11 @@ pub fn write_report_workbook(
         let worksheet = workbook.add_worksheet();
         write_comparison_sheet(
             worksheet,
-            report,
+            "Comparison",
+            report.meter_table.headers(),
+            &report.comparisons,
+            "Error %",
+            ComparisonMetricKind::ErrorPercent,
             &header_format,
             &auto_text,
             &auto_number,
@@ -148,7 +154,144 @@ pub fn write_report_workbook(
             [&error_green, &error_yellow, &error_red],
         )?;
     }
+    if let Some(thd) = &report.thd {
+        write_metric_section_sheets(
+            &mut workbook,
+            thd,
+            "THD Meter Detail",
+            "THD WM Detail",
+            "THD Comparison",
+            &header_format,
+            &used_text,
+            &used_number,
+            &skipped_text,
+            &skipped_number,
+            &average_text,
+            &average_number,
+            &unmatched_banner,
+            &unmatched_text,
+            &unmatched_number,
+            &auto_text,
+            &auto_number,
+            &meter_text,
+            &meter_number,
+            &section_format,
+            &na_format,
+            [&error_green, &error_yellow, &error_red],
+        )?;
+    }
+    if let Some(phase) = &report.phase {
+        write_metric_section_sheets(
+            &mut workbook,
+            phase,
+            "Phase Meter Detail",
+            "Phase WM Detail",
+            "Phase Comparison",
+            &header_format,
+            &used_text,
+            &used_number,
+            &skipped_text,
+            &skipped_number,
+            &average_text,
+            &average_number,
+            &unmatched_banner,
+            &unmatched_text,
+            &unmatched_number,
+            &auto_text,
+            &auto_number,
+            &meter_text,
+            &meter_number,
+            &section_format,
+            &na_format,
+            [&error_green, &error_yellow, &error_red],
+        )?;
+    }
     workbook.save(output_path)?;
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn write_metric_section_sheets(
+    workbook: &mut Workbook,
+    section: &MetricReportSection,
+    meter_sheet: &str,
+    auto_sheet: &str,
+    comparison_sheet: &str,
+    header_format: &Format,
+    used_text: &Format,
+    used_number: &Format,
+    skipped_text: &Format,
+    skipped_number: &Format,
+    average_text: &Format,
+    average_number: &Format,
+    unmatched_banner: &Format,
+    unmatched_text: &Format,
+    unmatched_number: &Format,
+    auto_text: &Format,
+    auto_number: &Format,
+    meter_text: &Format,
+    meter_number: &Format,
+    section_format: &Format,
+    na_format: &Format,
+    error_formats: [&Format; 3],
+) -> AppResult<()> {
+    {
+        let worksheet = workbook.add_worksheet();
+        write_detail_sheet(
+            worksheet,
+            meter_sheet,
+            &section.meter_table,
+            &section.meter_bands,
+            header_format,
+            used_text,
+            used_number,
+            skipped_text,
+            skipped_number,
+            average_text,
+            average_number,
+            unmatched_banner,
+            unmatched_text,
+            unmatched_number,
+        )?;
+    }
+    {
+        let worksheet = workbook.add_worksheet();
+        write_detail_sheet(
+            worksheet,
+            auto_sheet,
+            &section.auto_table,
+            &section.auto_bands,
+            header_format,
+            used_text,
+            used_number,
+            skipped_text,
+            skipped_number,
+            average_text,
+            average_number,
+            unmatched_banner,
+            unmatched_text,
+            unmatched_number,
+        )?;
+    }
+    {
+        let worksheet = workbook.add_worksheet();
+        write_comparison_sheet(
+            worksheet,
+            comparison_sheet,
+            section.meter_table.headers(),
+            &section.comparisons,
+            section.error_row_label,
+            section.metric_kind,
+            header_format,
+            auto_text,
+            auto_number,
+            meter_text,
+            meter_number,
+            section_format,
+            na_format,
+            error_formats,
+        )?;
+    }
     Ok(())
 }
 
@@ -170,14 +313,15 @@ fn write_detail_sheet(
     unmatched_number: &Format,
 ) -> AppResult<()> {
     worksheet.set_name(name)?;
+    let headers = table.headers();
     worksheet.write_string_with_format(0, 0, "Time", header_format)?;
-    for (index, header) in NUMERIC_HEADERS.iter().enumerate() {
+    for (index, header) in headers.iter().enumerate() {
         worksheet.write_string_with_format(0, (index + 1) as u16, *header, header_format)?;
     }
 
     // Track max display width per column for tighter autofit-style widths.
     let mut col_widths: Vec<f64> = std::iter::once(4.0_f64) // "Time"
-        .chain(NUMERIC_HEADERS.iter().map(|h| h.len() as f64))
+        .chain(headers.iter().map(|h| h.len() as f64))
         .collect();
 
     let mut excel_row = 1_u32;
@@ -254,7 +398,7 @@ fn write_detail_sheet(
         // Blank before unmatched section
         excel_row += 1;
 
-        let last_column = NUMERIC_HEADERS.len() as u16;
+        let last_column = headers.len() as u16;
         let banner = format!(
             "Unmatched rows — these values did not match any load target\n({} row{})",
             leftovers.len(),
@@ -322,7 +466,11 @@ fn write_data_row(
 #[allow(clippy::too_many_arguments)]
 fn write_comparison_sheet(
     worksheet: &mut Worksheet,
-    report: &MeterReportData,
+    sheet_name: &str,
+    headers: &[&str],
+    comparisons: &[crate::processing::compare::ComparisonBlock],
+    error_row_label: &str,
+    metric_kind: ComparisonMetricKind,
     header_format: &Format,
     auto_text: &Format,
     auto_number: &Format,
@@ -332,19 +480,19 @@ fn write_comparison_sheet(
     na_format: &Format,
     error_formats: [&Format; 3],
 ) -> AppResult<()> {
-    worksheet.set_name("Comparison")?;
+    worksheet.set_name(sheet_name)?;
     worksheet.write_string_with_format(0, 0, "Source", header_format)?;
-    for (index, header) in NUMERIC_HEADERS.iter().enumerate() {
+    for (index, header) in headers.iter().enumerate() {
         worksheet.write_string_with_format(0, (index + 1) as u16, *header, header_format)?;
     }
 
     let mut col_widths: Vec<f64> = std::iter::once(10.0_f64)
-        .chain(NUMERIC_HEADERS.iter().map(|h| h.len() as f64))
+        .chain(headers.iter().map(|h| h.len() as f64))
         .collect();
 
     let mut excel_row = 2;
-    let last_column = NUMERIC_HEADERS.len() as u16;
-    for comparison in &report.comparisons {
+    let last_column = headers.len() as u16;
+    for comparison in comparisons {
         let label = comparison_average_label(
             comparison.target.target_amps,
             comparison.target.load_percent,
@@ -367,6 +515,7 @@ fn write_comparison_sheet(
             auto_number,
             None,
             na_format,
+            metric_kind,
             &mut col_widths,
         )?;
         excel_row += 1;
@@ -379,18 +528,20 @@ fn write_comparison_sheet(
             meter_number,
             None,
             na_format,
+            metric_kind,
             &mut col_widths,
         )?;
         excel_row += 1;
         write_comparison_values(
             worksheet,
             excel_row,
-            "Error %",
+            error_row_label,
             &comparison.error_percent,
             na_format,
             na_format,
             Some(error_formats),
             na_format,
+            metric_kind,
             &mut col_widths,
         )?;
         excel_row += 2;
@@ -411,6 +562,7 @@ fn write_comparison_values(
     number_format: &Format,
     error_formats: Option<[&Format; 3]>,
     na_format: &Format,
+    metric_kind: ComparisonMetricKind,
     col_widths: &mut [f64],
 ) -> AppResult<()> {
     note_width(col_widths, 0, source);
@@ -422,9 +574,15 @@ fn write_comparison_values(
                 note_width(col_widths, column as usize, &format!("{value:.3}"));
                 let format = if let Some(formats) = error_formats {
                     let absolute = value.abs();
-                    if absolute < 0.25 {
+                    let (green_max, yellow_max) = match metric_kind {
+                        // Percent error thresholds
+                        ComparisonMetricKind::ErrorPercent => (0.25, 0.5),
+                        // Angle delta in degrees
+                        ComparisonMetricKind::AngleDeltaDegrees => (1.0, 3.0),
+                    };
+                    if absolute < green_max {
                         formats[0]
-                    } else if absolute < 0.5 {
+                    } else if absolute < yellow_max {
                         formats[1]
                     } else {
                         formats[2]

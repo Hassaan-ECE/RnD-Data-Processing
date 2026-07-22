@@ -75,10 +75,12 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
     assert!(fs::metadata(&output).expect("workbook should exist").len() > 1000);
 
     let mut workbook = open_workbook_auto(&output).expect("workbook should reopen");
-    assert_eq!(
-        workbook.sheet_names(),
-        ["Meter Detail", "WM Detail", "Comparison"]
-    );
+    // Core sheets always present; THD/Phase only when companions are built into report.
+    assert!(workbook.sheet_names().starts_with(&[
+        "Meter Detail".to_owned(),
+        "WM Detail".to_owned(),
+        "Comparison".to_owned(),
+    ]));
     let comparison = workbook
         .worksheet_range("Comparison")
         .expect("Comparison should be readable");

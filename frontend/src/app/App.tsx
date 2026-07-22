@@ -49,9 +49,9 @@ export function App() {
     }
   }, [setupPath]);
 
-  const updateControl: ReactNode = (
+  const updateControl: ReactNode = updates.visible ? (
     <UpdateActionButton state={updates.state} onClick={() => void updates.runAction()} />
-  );
+  ) : null;
 
   return (
     <div className="app-shell">

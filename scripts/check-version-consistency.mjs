@@ -13,7 +13,7 @@ const versions = {
 
 const uniqueVersions = new Set(Object.values(versions));
 
-if (uniqueVersions.size !== 1 || [...uniqueVersions][0] !== "0.1.0") {
+if (uniqueVersions.size !== 1 || ![...uniqueVersions][0]) {
   console.error("Version mismatch:", versions);
   process.exit(1);
 }

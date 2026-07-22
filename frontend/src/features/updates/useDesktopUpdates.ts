@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { relaunch } from "@tauri-apps/plugin-process";
 import { check, type DownloadEvent, type Update } from "@tauri-apps/plugin-updater";
 
 import { isTauriRuntime } from "../../integrations/tauri/backend";
@@ -20,6 +21,17 @@ export interface UpdateState {
   message?: string;
 }
 
+/** Visible only while an update needs attention (not idle / up-to-date). */
+export function isUpdateButtonVisible(state: UpdateState): boolean {
+  return (
+    state.status === "available" ||
+    state.status === "downloading" ||
+    state.status === "ready" ||
+    state.status === "installing" ||
+    state.status === "error"
+  );
+}
+
 export function useDesktopUpdates(announce: (message: string) => void) {
   const [state, setState] = useState<UpdateState>({ status: "idle" });
   const pendingUpdate = useRef<Update | null>(null);
@@ -31,11 +43,45 @@ export function useDesktopUpdates(announce: (message: string) => void) {
     [],
   );
 
+  // Check once on launch — button appears only if a newer version is published.
+  useEffect(() => {
+    if (!isTauriRuntime()) {
+      return;
+    }
+    let active = true;
+    void (async () => {
+      try {
+        const update = await check();
+        if (!active) {
+          return;
+        }
+        pendingUpdate.current?.close().catch(() => undefined);
+        pendingUpdate.current = update;
+        if (!update) {
+          setState({ status: "current", message: "You are up to date." });
+          return;
+        }
+        setState({
+          status: "available",
+          latestVersion: update.version,
+          message: `Version ${update.version} is available.`,
+        });
+        announce(`Update available: ${update.version}`);
+      } catch {
+        // Silent on launch — app stays usable if check fails (offline, no release, etc.).
+        if (active) {
+          setState({ status: "idle" });
+        }
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, [announce]);
+
   const runAction = useCallback(async () => {
     if (!isTauriRuntime()) {
-      const message = "Updates are available from the installed desktop app.";
-      setState({ status: "idle", message });
-      announce(message);
+      announce("Updates are available from the installed desktop app.");
       return;
     }
     if (["checking", "downloading", "installing"].includes(state.status)) {
@@ -43,13 +89,16 @@ export function useDesktopUpdates(announce: (message: string) => void) {
     }
 
     try {
+      // Install → restart so the new version is running.
       if (state.status === "ready" && pendingUpdate.current) {
         setState((current) => ({ ...current, status: "installing" }));
+        announce("Installing update… the app will restart.");
         await pendingUpdate.current.install();
-        announce("Update installation started. The app may restart or close briefly.");
+        await relaunch();
         return;
       }
 
+      // Available → download; next click installs.
       if (state.status === "available" && pendingUpdate.current) {
         let totalBytes = 0;
         let downloadedBytes = 0;
@@ -64,11 +113,17 @@ export function useDesktopUpdates(announce: (message: string) => void) {
           const progress = totalBytes > 0 ? Math.min(99, Math.round((downloadedBytes / totalBytes) * 100)) : undefined;
           setState((current) => ({ ...current, status: "downloading", progress }));
         });
-        setState((current) => ({ ...current, status: "ready", progress: 100 }));
-        announce("Update downloaded and ready to install.");
+        setState((current) => ({
+          ...current,
+          status: "ready",
+          progress: 100,
+          message: "Update downloaded. Click to install and restart.",
+        }));
+        announce("Update ready to install. The app will restart after install.");
         return;
       }
 
+      // Error / retry: re-check for an update.
       setState({ status: "checking" });
       const update = await check();
       pendingUpdate.current?.close().catch(() => undefined);
@@ -78,8 +133,12 @@ export function useDesktopUpdates(announce: (message: string) => void) {
         announce("Data Processing is up to date.");
         return;
       }
-      setState({ status: "available", latestVersion: update.version });
-      announce(`Version ${update.version} is available.`);
+      setState({
+        status: "available",
+        latestVersion: update.version,
+        message: `Version ${update.version} is available.`,
+      });
+      announce(`Update available: ${update.version}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : "Update check failed.";
       setState({ status: "error", message });
@@ -87,7 +146,11 @@ export function useDesktopUpdates(announce: (message: string) => void) {
     }
   }, [announce, state.status]);
 
-  return { runAction, state };
+  return {
+    runAction,
+    state,
+    visible: isUpdateButtonVisible(state),
+  };
 }
 
 export function updateButtonLabel(state: UpdateState): string {
@@ -97,7 +160,7 @@ export function updateButtonLabel(state: UpdateState): string {
     case "current":
       return "Up to date";
     case "available":
-      return state.latestVersion ? `Download ${state.latestVersion}` : "Download update";
+      return "Update available";
     case "downloading":
       return typeof state.progress === "number" ? `Downloading ${state.progress}%` : "Downloading...";
     case "ready":

@@ -1,24 +1,37 @@
-import type { MouseEvent as ReactMouseEvent } from "react";
-import { ChevronLeft, ChevronRight, PanelRightClose, PanelRightOpen } from "lucide-react";
+import { useEffect, useState, type MouseEvent as ReactMouseEvent, type WheelEvent as ReactWheelEvent } from "react";
 
 import type { BandHealth, BandPreviewResult, LoadPointPreview } from "../../integrations/tauri/backend";
 import { ScrollRegion } from "../../shared/ui/ScrollRegion";
 
 interface LoadRangeSidebarProps {
   tolerance: number;
+  onToleranceChange: (value: number) => void;
   preview: BandPreviewResult | null;
   loading: boolean;
   error: string;
   hasSetup: boolean;
   hasData: boolean;
-  collapsed: boolean;
   width: number;
-  onToggleCollapsed: () => void;
   onWidthChange: (width: number) => void;
 }
 
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 480;
+
+function clampTolerance(value: number): number {
+  if (!Number.isFinite(value)) {
+    return 5;
+  }
+  return Math.min(100, Math.max(0.1, Math.round(value * 10) / 10));
+}
+
+function formatToleranceDisplay(value: number): string {
+  if (!Number.isFinite(value)) {
+    return "";
+  }
+  // Drop trailing zeros so "5" stays tight instead of "5.0".
+  return String(Math.round(value * 10) / 10).replace(/\.0$/, "");
+}
 
 function formatAmps(value: number): string {
   if (Math.abs(value - Math.round(value)) < 1e-9) {
@@ -84,25 +97,49 @@ function PointCard({ point, hasData }: { point: LoadPointPreview; hasData: boole
 
 export function LoadRangeSidebar({
   tolerance,
+  onToleranceChange,
   preview,
   loading,
   error,
   hasSetup,
   hasData,
-  collapsed,
   width,
-  onToggleCollapsed,
   onWidthChange,
 }: LoadRangeSidebarProps) {
+  const [toleranceDraft, setToleranceDraft] = useState(() => formatToleranceDisplay(tolerance));
+
+  useEffect(() => {
+    setToleranceDraft(formatToleranceDisplay(tolerance));
+  }, [tolerance]);
+
+  const commitToleranceDraft = () => {
+    const parsed = Number(toleranceDraft.trim().replace(/%/g, ""));
+    const next = clampTolerance(parsed);
+    onToleranceChange(next);
+    setToleranceDraft(formatToleranceDisplay(next));
+  };
+
+  const nudgeTolerance = (event: ReactWheelEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const step = event.shiftKey ? 0.1 : 1;
+    const dir = event.deltaY < 0 ? 1 : -1;
+    const base = Number.isFinite(Number(toleranceDraft)) ? Number(toleranceDraft) : tolerance;
+    const next = clampTolerance(base + dir * step);
+    onToleranceChange(next);
+    setToleranceDraft(formatToleranceDisplay(next));
+  };
+
   const startResize = (event: ReactMouseEvent<HTMLDivElement>) => {
     event.preventDefault();
+    event.stopPropagation();
     const startX = event.clientX;
-    const startWidth = width;
+    const startWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, width));
 
     const onMove = (moveEvent: MouseEvent) => {
-      // Drag handle is on the left edge of the rail → drag left = wider.
-      const next = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + (startX - moveEvent.clientX)));
-      onWidthChange(next);
+      // Handle is on the left edge of the rail → drag left = wider.
+      const delta = startX - moveEvent.clientX;
+      onWidthChange(Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, startWidth + delta)));
     };
     const onUp = () => {
       window.removeEventListener("mousemove", onMove);
@@ -112,25 +149,9 @@ export function LoadRangeSidebar({
     window.addEventListener("mouseup", onUp);
   };
 
-  if (collapsed) {
-    return (
-      <aside className="load-range-sidebar load-range-sidebar-collapsed" aria-label="Load ranges collapsed">
-        <button
-          className="sidebar-icon-button"
-          type="button"
-          onClick={onToggleCollapsed}
-          title="Show load ranges"
-          aria-expanded={false}
-        >
-          <PanelRightOpen />
-          <span className="sidebar-collapsed-label">Ranges</span>
-        </button>
-      </aside>
-    );
-  }
-
   return (
     <aside
+      id="load-range-sidebar"
       className="load-range-sidebar"
       aria-label="Load ranges"
       style={{ width: `${width}px`, minWidth: `${width}px`, maxWidth: `${width}px` }}
@@ -147,37 +168,35 @@ export function LoadRangeSidebar({
         <div className="section-heading sidebar-heading">
           <h2>Load ranges</h2>
           <div className="sidebar-heading-actions">
-            {hasSetup ? <span className="status-chip">±{tolerance}%</span> : null}
-            <button
-              className="sidebar-icon-button"
-              type="button"
-              onClick={onToggleCollapsed}
-              title="Collapse load ranges"
-              aria-expanded={true}
+            <label
+              className="status-chip tolerance-chip"
+              htmlFor="sidebar-tolerance-input"
+              title="Match tolerance — scroll to adjust, Shift+scroll for 0.1"
             >
-              <PanelRightClose />
-            </button>
+              <span aria-hidden="true">±</span>
+              <input
+                id="sidebar-tolerance-input"
+                type="text"
+                inputMode="decimal"
+                value={toleranceDraft}
+                size={Math.max(1, toleranceDraft.length || 1)}
+                onChange={(event) => {
+                  // Allow intermediate edits; commit on blur / Enter / wheel.
+                  const raw = event.target.value.replace(/[^\d.]/g, "");
+                  setToleranceDraft(raw);
+                }}
+                onBlur={commitToleranceDraft}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  }
+                }}
+                onWheel={nudgeTolerance}
+                aria-label="Match tolerance percent"
+              />
+              <span aria-hidden="true">%</span>
+            </label>
           </div>
-        </div>
-        <div className="sidebar-width-actions" aria-label="Sidebar width">
-          <button
-            className="secondary-button sidebar-width-button"
-            type="button"
-            disabled={width <= MIN_WIDTH}
-            onClick={() => onWidthChange(Math.max(MIN_WIDTH, width - 40))}
-            title="Narrower"
-          >
-            <ChevronRight />
-          </button>
-          <button
-            className="secondary-button sidebar-width-button"
-            type="button"
-            disabled={width >= MAX_WIDTH}
-            onClick={() => onWidthChange(Math.min(MAX_WIDTH, width + 40))}
-            title="Wider"
-          >
-            <ChevronLeft />
-          </button>
         </div>
       </div>
 

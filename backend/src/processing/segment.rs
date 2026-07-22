@@ -88,7 +88,7 @@ pub fn segment_reference_bands(
 
     let mut assignments = vec![Vec::new(); targets.len()];
     for (row_index, row) in reference.rows.iter().enumerate() {
-        let Some(current) = row.value("I(A)") else {
+        let Some(current) = reference.value(row, "I(A)") else {
             continue;
         };
         let nearest = targets

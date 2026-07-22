@@ -1,10 +1,14 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode, type WheelEvent as ReactWheelEvent } from "react";
 import {
   ArrowLeft,
   ExternalLink,
   FileSpreadsheet,
   FolderOpen,
+  FolderOutput,
   LoaderCircle,
+  MoreHorizontal,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 
 import {
@@ -46,7 +50,7 @@ export function ProcessorPage({
   const [skipStart, setSkipStart] = useState(2);
   const [skipEnd, setSkipEnd] = useState(2);
   const [windowSize, setWindowSize] = useState(20);
-  const [outputMode, setOutputMode] = useState<"default" | "custom">("default");
+  /** Empty = use default under data folder; set only when user picks a custom output. */
   const [customOutput, setCustomOutput] = useState("");
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [busy, setBusy] = useState(false);
@@ -161,9 +165,10 @@ export function ProcessorPage({
   }, [setupPath, dataFolder, tolerance, reduceOptions]);
 
   const defaultOutput = useMemo(
-    () => (dataFolder ? `${dataFolder}\\System_208V_Accuracy_Reports` : "Select a data folder first"),
+    () => (dataFolder ? `${dataFolder}\\System_208V_Accuracy_Reports` : ""),
     [dataFolder],
   );
+  const outputPath = customOutput || defaultOutput;
   const successfulReports =
     result?.reports.filter((report) => report.status === "success" && report.reportPath) ?? [];
   const reduceValid =
@@ -213,11 +218,10 @@ export function ProcessorPage({
     }
   };
 
-  const selectCustomOutput = async () => {
+  const selectOutputFolder = async () => {
     const selected = await chooseOutputFolder();
     if (selected) {
       setCustomOutput(selected);
-      setOutputMode("custom");
     }
   };
 
@@ -232,7 +236,7 @@ export function ProcessorPage({
       const pipelineResult = await runSystem208vReport({
         dataFolder,
         setupPath,
-        outputDir: outputMode === "custom" ? customOutput || null : null,
+        outputDir: customOutput || null,
         tolerancePercent: tolerance,
         reduce: reduceOptions,
       });
@@ -269,7 +273,25 @@ export function ProcessorPage({
           </button>
         </div>
         <h1>System 208V</h1>
-        <div className="heading-side heading-side-end" aria-hidden="true" />
+        <div className="heading-side heading-side-end">
+          <button
+            className={sidebarCollapsed ? "sidebar-toggle-button" : "sidebar-icon-button"}
+            type="button"
+            onClick={() => setSidebarCollapsed((current) => !current)}
+            title={sidebarCollapsed ? "Show load ranges" : "Collapse load ranges"}
+            aria-expanded={!sidebarCollapsed}
+            aria-controls="load-range-sidebar"
+          >
+            {sidebarCollapsed ? (
+              <>
+                <span>Load Ranges</span>
+                <PanelRightOpen />
+              </>
+            ) : (
+              <PanelRightClose />
+            )}
+          </button>
+        </div>
       </div>
 
       {!isTauriRuntime() ? (
@@ -278,207 +300,93 @@ export function ProcessorPage({
 
       <div className="processor-layout">
         <ScrollRegion className="processor-main-scroll" contentClassName="processor-main" aria-label="System 208V controls">
-          <section className="panel" aria-labelledby="inputs-heading">
-            <div className="section-heading">
-              <h2 id="inputs-heading">Inputs</h2>
-              {setupSummary ? (
-                <span className="status-chip success">{setupSummary.targets.length} load points</span>
-              ) : null}
-            </div>
-
+          <section className="panel" aria-label="Inputs">
             <PathRow
+              label="Setup File"
               icon={<FileSpreadsheet />}
-              label="Setup workbook"
-              value={setupPath || "No setup workbook selected"}
-              action="Change"
+              placeholder="No setup workbook selected"
+              value={setupPath}
+              actionLabel="Change setup workbook"
               onAction={selectSetup}
             />
             <PathRow
+              label="Data Folder"
               icon={<FolderOpen />}
-              label="Data folder"
-              value={dataFolder || "Select folder with Real-Time + Auto CSVs"}
-              action="Browse"
+              placeholder="Select folder with Real-Time + Auto CSVs"
+              value={dataFolder}
+              actionLabel="Browse data folder"
               onAction={selectDataFolder}
               disabled={busy}
             />
-
-            <div className="options-grid">
-              <div>
-                <label className="field-label" htmlFor="tolerance-input">
-                  Match tolerance (±%)
-                </label>
-                <div className="number-field">
-                  <input
-                    id="tolerance-input"
-                    type="number"
-                    min="0.1"
-                    max="100"
-                    step="0.1"
-                    value={tolerance}
-                    onChange={(event) => setTolerance(Number(event.target.value))}
-                  />
-                  <span>%</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="reduce-block">
-              <span className="field-label">Average method</span>
-              <div className="segmented-control" role="radiogroup" aria-label="Average method">
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={reduceMode === "trim"}
-                  className={reduceMode === "trim" ? "active" : ""}
-                  onClick={() => setReduceMode("trim")}
-                  title="Skip rows from the start and end, then average the rest."
-                >
-                  Standard trim
-                </button>
-                <button
-                  type="button"
-                  role="radio"
-                  aria-checked={reduceMode === "window"}
-                  className={reduceMode === "window" ? "active" : ""}
-                  onClick={() => setReduceMode("window")}
-                  title="Skip rows from the end, then take a fixed number of points backwards."
-                >
-                  Fixed window
-                </button>
-              </div>
-              <div className="options-grid reduce-params">
-                {reduceMode === "trim" ? (
-                  <div>
-                    <label className="field-label" htmlFor="skip-start-input">
-                      Skip start
-                    </label>
-                    <div className="number-field">
-                      <input
-                        id="skip-start-input"
-                        type="number"
-                        min="0"
-                        max="500"
-                        step="1"
-                        value={skipStart}
-                        onChange={(event) => setSkipStart(Math.max(0, Number(event.target.value) || 0))}
-                      />
-                      <span>rows</span>
-                    </div>
-                  </div>
-                ) : (
-                  <div>
-                    <label className="field-label" htmlFor="window-size-input">
-                      Window size
-                    </label>
-                    <div className="number-field">
-                      <input
-                        id="window-size-input"
-                        type="number"
-                        min="1"
-                        max="500"
-                        step="1"
-                        value={windowSize}
-                        onChange={(event) => setWindowSize(Math.max(1, Number(event.target.value) || 1))}
-                      />
-                      <span>pts</span>
-                    </div>
-                  </div>
-                )}
-                <div>
-                  <label className="field-label" htmlFor="skip-end-input">
-                    Skip end
-                  </label>
-                  <div className="number-field">
-                    <input
-                      id="skip-end-input"
-                      type="number"
-                      min="0"
-                      max="500"
-                      step="1"
-                      value={skipEnd}
-                      onChange={(event) => setSkipEnd(Math.max(0, Number(event.target.value) || 0))}
-                    />
-                    <span>rows</span>
-                  </div>
-                </div>
-              </div>
-              <p className="help-text">
-                {reduceMode === "trim"
-                  ? "Per load band: drop the first/last rows, then average what remains (same as Python Mode A)."
-                  : "Per load band: drop the last rows, then average the previous N points (same as Python Mode B)."}
-              </p>
-            </div>
+            <PathRow
+              label="Output Folder"
+              icon={<FolderOutput />}
+              placeholder="Select a data folder to set default output"
+              value={outputPath}
+              actionLabel="Change output folder"
+              onAction={selectOutputFolder}
+              disabled={busy}
+            />
           </section>
 
-          <section className="panel" aria-labelledby="detected-heading">
-            <div className="section-heading">
-              <h2 id="detected-heading">Detected</h2>
-              {discovery ? (
-                <span className="status-chip success">Ready</span>
+          <section className="panel average-method-panel" aria-label="Average method">
+            <div className="segmented-control" role="radiogroup" aria-label="Average method">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={reduceMode === "trim"}
+                className={reduceMode === "trim" ? "active" : ""}
+                onClick={() => setReduceMode("trim")}
+                title="Skip rows from the start and end, then average the rest."
+              >
+                Standard trim
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={reduceMode === "window"}
+                className={reduceMode === "window" ? "active" : ""}
+                onClick={() => setReduceMode("window")}
+                title="Skip rows from the end, then take a fixed number of points backwards."
+              >
+                Fixed window
+              </button>
+            </div>
+            <div className="average-param-chips">
+              {reduceMode === "trim" ? (
+                <ParamChip
+                  id="skip-start-input"
+                  label="Skip start"
+                  unit="rows"
+                  value={skipStart}
+                  min={0}
+                  max={500}
+                  onChange={setSkipStart}
+                />
               ) : (
-                <span className="status-chip">Waiting</span>
+                <ParamChip
+                  id="window-size-input"
+                  label="Window"
+                  unit="pts"
+                  value={windowSize}
+                  min={1}
+                  max={500}
+                  onChange={setWindowSize}
+                />
               )}
+              <ParamChip
+                id="skip-end-input"
+                label="Skip end"
+                unit="rows"
+                value={skipEnd}
+                min={0}
+                max={500}
+                onChange={setSkipEnd}
+              />
             </div>
-            {discovery ? (
-              <div className="detected-list">
-                <DetectedItem title="Yokogawa Auto" detail={discovery.autoFileName} badge="shared" />
-                {discovery.meters.map((meter) => (
-                  <DetectedItem
-                    key={meter.id}
-                    title={meter.label}
-                    detail={meter.fileName}
-                    badge={meter.autoGroupId}
-                  />
-                ))}
-                {discovery.warnings.map((warning) => (
-                  <p className="warning-line" key={warning}>
-                    {warning}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <div className="empty-state">Browse a data folder to detect meters and Auto CSV.</div>
-            )}
           </section>
 
-          <section className="panel" aria-labelledby="output-heading">
-            <div className="section-heading">
-              <h2 id="output-heading">Output</h2>
-            </div>
-            <div className="segmented-control" role="radiogroup" aria-label="Output folder mode">
-              <button
-                type="button"
-                role="radio"
-                aria-checked={outputMode === "default"}
-                className={outputMode === "default" ? "active" : ""}
-                onClick={() => setOutputMode("default")}
-              >
-                Default folder
-              </button>
-              <button
-                type="button"
-                role="radio"
-                aria-checked={outputMode === "custom"}
-                className={outputMode === "custom" ? "active" : ""}
-                onClick={() => setOutputMode("custom")}
-              >
-                Custom folder
-              </button>
-            </div>
-            <div className="output-path">
-              <span>{outputMode === "default" ? defaultOutput : customOutput || "No custom folder selected"}</span>
-            </div>
-            {outputMode === "custom" ? (
-              <button className="secondary-button full-width" type="button" onClick={selectCustomOutput}>
-                Browse output folder
-              </button>
-            ) : null}
-          </section>
-
-          <section className="panel action-stack" aria-labelledby="generate-heading">
-            <div className="section-heading">
-              <h2 id="generate-heading">Run</h2>
-            </div>
+          <section className="panel action-stack" aria-label="Run">
             <button className="primary-button" type="button" disabled={!canGenerate} onClick={generate}>
               {busy ? <LoaderCircle className="spin" /> : null}
               {busy ? "Processing..." : "Generate reports"}
@@ -538,60 +446,152 @@ export function ProcessorPage({
               </div>
             </section>
           ) : null}
+
+          <section className="panel" aria-labelledby="detected-heading">
+            <div className="section-heading">
+              <h2 id="detected-heading">Detected</h2>
+            </div>
+            {discovery ? (
+              <div className="detected-list">
+                <DetectedItem title="Yokogawa Auto" detail={discovery.autoFileName} />
+                {discovery.meters.map((meter) => (
+                  <DetectedItem key={meter.id} title={meter.label} detail={meter.fileName} />
+                ))}
+                {discovery.warnings.map((warning) => (
+                  <p className="warning-line" key={warning}>
+                    {warning}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">Browse a data folder to detect meters and Auto CSV.</div>
+            )}
+          </section>
         </ScrollRegion>
 
-        <LoadRangeSidebar
-          tolerance={tolerance}
-          preview={preview}
-          loading={previewLoading}
-          error={previewError}
-          hasSetup={Boolean(setupPath && setupSummary)}
-          hasData={Boolean(dataFolder && discovery)}
-          collapsed={sidebarCollapsed}
-          width={sidebarWidth}
-          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
-          onWidthChange={setSidebarWidth}
-        />
+        {!sidebarCollapsed ? (
+          <LoadRangeSidebar
+            tolerance={tolerance}
+            onToleranceChange={setTolerance}
+            preview={preview}
+            loading={previewLoading}
+            error={previewError}
+            hasSetup={Boolean(setupPath && setupSummary)}
+            hasData={Boolean(dataFolder && discovery)}
+            width={sidebarWidth}
+            onWidthChange={setSidebarWidth}
+          />
+        ) : null}
       </div>
     </div>
   );
 }
 
 interface PathRowProps {
-  icon: ReactNode;
   label: string;
+  icon: ReactNode;
+  placeholder: string;
   value: string;
-  action: string;
+  actionLabel: string;
   onAction: () => void;
   disabled?: boolean;
 }
 
-function PathRow({ icon, label, value, action, onAction, disabled }: PathRowProps) {
+function PathRow({ label, icon, placeholder, value, actionLabel, onAction, disabled }: PathRowProps) {
+  const empty = !value;
+  const display = empty ? placeholder : value;
   return (
     <div className="path-row">
-      <div className="path-row-copy">
-        <span className="field-label">{label}</span>
-        <div className="path-value" title={value}>
-          {icon}
-          <span>{value}</span>
-        </div>
+      <span className="path-row-label">{label}</span>
+      <div className={`path-value${empty ? " path-value-empty" : ""}`} title={display}>
+        {icon}
+        <span>{display}</span>
       </div>
-      <button className="secondary-button" type="button" onClick={onAction} disabled={disabled}>
-        {action}
+      <button
+        className="path-row-menu-button"
+        type="button"
+        onClick={onAction}
+        disabled={disabled}
+        aria-label={actionLabel}
+        title={actionLabel}
+      >
+        <MoreHorizontal aria-hidden="true" />
       </button>
     </div>
   );
 }
 
-function DetectedItem({ title, detail, badge }: { title: string; detail: string; badge: string }) {
+function DetectedItem({ title, detail }: { title: string; detail: string }) {
   return (
     <div className="detected-item">
-      <div>
-        <strong>{title}</strong>
-        <span title={detail}>{detail}</span>
-      </div>
-      <span className="mapping-badge">{badge}</span>
+      <strong>{title}</strong>
+      <span title={detail}>{detail}</span>
     </div>
+  );
+}
+
+interface ParamChipProps {
+  id: string;
+  label: string;
+  unit: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+}
+
+function clampInt(value: number, min: number, max: number): number {
+  if (!Number.isFinite(value)) {
+    return min;
+  }
+  return Math.min(max, Math.max(min, Math.round(value)));
+}
+
+/** Compact editable chip — same idea as the sidebar ±% tolerance chip. */
+function ParamChip({ id, label, unit, value, min, max, onChange }: ParamChipProps) {
+  const [draft, setDraft] = useState(String(value));
+
+  useEffect(() => {
+    setDraft(String(value));
+  }, [value]);
+
+  const commit = () => {
+    const next = clampInt(Number(draft.trim()), min, max);
+    onChange(next);
+    setDraft(String(next));
+  };
+
+  const nudge = (event: ReactWheelEvent<HTMLInputElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    const dir = event.deltaY < 0 ? 1 : -1;
+    const base = Number.isFinite(Number(draft)) ? Number(draft) : value;
+    const next = clampInt(base + dir, min, max);
+    onChange(next);
+    setDraft(String(next));
+  };
+
+  return (
+    <label className="param-chip" htmlFor={id} title={`${label} — scroll to adjust`}>
+      <span className="param-chip-label">{label}</span>
+      <input
+        id={id}
+        type="text"
+        inputMode="numeric"
+        value={draft}
+        size={Math.max(1, draft.length || 1)}
+        onChange={(event) => setDraft(event.target.value.replace(/[^\d]/g, ""))}
+        onBlur={commit}
+        onKeyDown={(event) => {
+          if (event.key === "Enter") {
+            event.currentTarget.blur();
+          }
+        }}
+        onWheel={nudge}
+        aria-label={`${label} (${unit})`}
+      />
+      <span className="param-chip-unit">{unit}</span>
+    </label>
   );
 }
 

@@ -8,11 +8,15 @@ use serde::{Deserialize, Serialize};
 
 use crate::config::load_embedded_config;
 use crate::error::{AppError, AppResult};
-use crate::processing::compare::build_meter_report_data;
+use crate::processing::compare::{
+    build_meter_report_data, build_phase_section, build_thd_section,
+};
 use crate::processing::discover::discover_data_folder;
 use crate::processing::excel_write::write_report_workbook;
 use crate::processing::preprocess::{
-    preprocess_acuvim, preprocess_auto_data, read_auto_csv, MeasurementTable,
+    companion_csv_path, preprocess_acuvim, preprocess_acuvim_phase, preprocess_acuvim_thd,
+    preprocess_auto_data, preprocess_auto_phase, preprocess_auto_thd, read_auto_csv,
+    MeasurementTable,
 };
 use crate::processing::segment::{segment_reference_bands, ReduceOptions};
 use crate::processing::setup::load_setup_targets;
@@ -126,11 +130,13 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
         &input.reduce,
     )?;
     let timestamp_match_seconds = config.registry.defaults.timestamp_match_seconds;
+    let mut warnings = discovery.warnings;
     let reports = discovery
         .meters
         .par_iter()
         .map(|meter| {
-            let result = (|| -> AppResult<PathBuf> {
+            let result = (|| -> AppResult<(PathBuf, Vec<String>)> {
+                let mut local_warnings = Vec::new();
                 let meter_table = preprocess_acuvim(&meter.path)?;
                 let auto_table =
                     auto_tables
@@ -142,7 +148,7 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
                                 meter.auto_group_id, meter.label
                             ))
                         })?;
-                let report = build_meter_report_data(
+                let mut report = build_meter_report_data(
                     meter.id.clone(),
                     meter.label.clone(),
                     meter_table,
@@ -152,31 +158,92 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
                     input.tolerance_percent,
                     &input.reduce,
                 )?;
+
+                let group = config.auto_groups.get(&meter.auto_group_id).ok_or_else(|| {
+                    AppError::Message(format!(
+                        "Unknown Auto channel group '{}'",
+                        meter.auto_group_id
+                    ))
+                })?;
+
+                match companion_csv_path(&meter.path, "THD") {
+                    Some(thd_path) => {
+                        let meter_thd = preprocess_acuvim_thd(&thd_path)?;
+                        let auto_thd = preprocess_auto_thd(&raw_auto, group)?;
+                        report.thd = Some(build_thd_section(
+                            meter_thd,
+                            auto_thd,
+                            &reference_bands,
+                            timestamp_match_seconds,
+                            input.tolerance_percent,
+                            &input.reduce,
+                        )?);
+                    }
+                    None => local_warnings.push(format!(
+                        "{}: THD companion CSV was not found next to {}; THD sheets skipped",
+                        meter.label,
+                        meter.file_name
+                    )),
+                }
+
+                match companion_csv_path(&meter.path, "PhaseAngle") {
+                    Some(phase_path) => {
+                        let meter_phase = preprocess_acuvim_phase(&phase_path)?;
+                        let auto_phase = preprocess_auto_phase(&raw_auto, group)?;
+                        report.phase = Some(build_phase_section(
+                            meter_phase,
+                            auto_phase,
+                            &reference_bands,
+                            timestamp_match_seconds,
+                            input.tolerance_percent,
+                            &input.reduce,
+                        )?);
+                    }
+                    None => local_warnings.push(format!(
+                        "{}: PhaseAngle companion CSV was not found next to {}; Phase sheets skipped",
+                        meter.label,
+                        meter.file_name
+                    )),
+                }
+
                 let output_path = output_dir.join(format!(
                     "System_208V_{}_Accuracy_Report.xlsx",
                     filename_component(&meter.label)
                 ));
                 write_report_workbook(&output_path, &report)?;
-                Ok(output_path)
+                Ok((output_path, local_warnings))
             })();
             match result {
-                Ok(report_path) => ReportOutcome {
-                    meter_id: meter.id.clone(),
-                    meter_label: meter.label.clone(),
-                    status: ReportStatus::Success,
-                    report_path: Some(report_path),
-                    error: None,
-                },
-                Err(error) => ReportOutcome {
-                    meter_id: meter.id.clone(),
-                    meter_label: meter.label.clone(),
-                    status: ReportStatus::Failed,
-                    report_path: None,
-                    error: Some(error.to_string()),
-                },
+                Ok((report_path, local_warnings)) => (
+                    ReportOutcome {
+                        meter_id: meter.id.clone(),
+                        meter_label: meter.label.clone(),
+                        status: ReportStatus::Success,
+                        report_path: Some(report_path),
+                        error: None,
+                    },
+                    local_warnings,
+                ),
+                Err(error) => (
+                    ReportOutcome {
+                        meter_id: meter.id.clone(),
+                        meter_label: meter.label.clone(),
+                        status: ReportStatus::Failed,
+                        report_path: None,
+                        error: Some(error.to_string()),
+                    },
+                    Vec::new(),
+                ),
             }
         })
         .collect::<Vec<_>>();
+
+    let mut report_outcomes = Vec::with_capacity(reports.len());
+    for (outcome, local_warnings) in reports {
+        warnings.extend(local_warnings);
+        report_outcomes.push(outcome);
+    }
+    let reports = report_outcomes;
     let success_count = reports
         .iter()
         .filter(|report| report.status == ReportStatus::Success)
@@ -186,7 +253,7 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
     Ok(PipelineResult {
         output_dir,
         reports,
-        warnings: discovery.warnings,
+        warnings,
         setup_sheet: setup.sheet_name,
         target_count: setup.targets.len(),
         success_count,

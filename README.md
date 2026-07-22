@@ -11,7 +11,8 @@ Repository: https://github.com/Hassaan-ECE/RnD-Data-Processing
 - Exact mappings: IIR / Meter 10 → Auto 4/5/6 + SIGMB; IIW / Meter 9 → Auto 1/2/3 + SIGMA.
 - RAM-only offline CSV preprocessing; no database, persistence layer, watcher, or realtime service.
 - Parallel Auto transforms and per-meter report processing where independent.
-- One workbook per meter with exactly `Meter Detail`, `WM Detail`, and `Comparison` sheets.
+- One workbook per meter with `Meter Detail`, `WM Detail`, and `Comparison` sheets.
+- When present next to each Real-Time file, companion `*.THD.csv` and `*.PhaseAngle.csv` add THD and Phase detail/comparison sheets vs Yokogawa `Uthd`/`Ithd`/`Phi`.
 - Open report(s), open output folder, current-user NSIS configuration, and updater UI/configuration.
 
 ## Prerequisites
@@ -35,7 +36,7 @@ bun run desktop
 
 1. On the Hub, choose the setup `.xlsx` workbook.
 2. Open the enabled `System 208V` card.
-3. Choose the folder containing the Acuvim Real-Time CSVs and exactly one Auto CSV.
+3. Choose the folder containing the Acuvim Real-Time CSVs and exactly one Auto CSV. Optional same-timestamp `*.THD.csv` / `*.PhaseAngle.csv` companions are included when present.
 4. Leave tolerance at the default `5%` or enter another value greater than 0 and no more than 100.
 5. Keep the default output or choose a custom folder.
 6. Select `Generate reports`, then use `Open report(s)` or `Open output folder`.
@@ -109,6 +110,7 @@ https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/late
 
 ## Documentation
 
+- `docs/COLUMN_MAPPING.md` — Acuvim ↔ Yokogawa Auto column map (Real-Time, THD, Phase) for double-checking reports.
 - `docs/HANDOFF.md` — implementation status, decisions, smoke evidence, and release notes.
 - `docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md` — product design.
 - `docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md` — implementation plan.
