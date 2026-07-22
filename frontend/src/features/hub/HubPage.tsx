@@ -73,10 +73,6 @@ export function HubPage({
 
   return (
     <div className="page-stack hub-page">
-      <div className="hub-heading hub-heading-actions-only">
-        <div className="heading-side heading-side-end">{updateControl}</div>
-      </div>
-
       <section className="panel setup-panel" aria-labelledby="setup-heading">
         <div className="section-heading">
           <h2 id="setup-heading">Setup workbook</h2>
@@ -103,25 +99,19 @@ export function HubPage({
         ) : null}
       </section>
 
-      <section className="test-list" aria-label="Available tests">
-        <button className="test-row ready" type="button" onClick={onOpenSystem208v}>
-          <div className="test-row-copy">
-            <strong>System 208V</strong>
-            <span>Acuvim + Auto accuracy report</span>
-          </div>
-          <span className="test-badge">Ready</span>
+      <section className="test-grid" aria-label="Available tests">
+        <button className="test-tile ready" type="button" onClick={onOpenSystem208v}>
+          System 208V
         </button>
 
         {comingSoonTests.map((title) => (
-          <button className="test-row disabled" type="button" disabled key={title}>
-            <div className="test-row-copy">
-              <strong>{title}</strong>
-              <span>Not available in this build</span>
-            </div>
-            <span className="test-badge soon">Soon</span>
+          <button className="test-tile disabled" type="button" disabled key={title}>
+            {title}
           </button>
         ))}
       </section>
+
+      <div className="hub-footer">{updateControl}</div>
     </div>
   );
 }

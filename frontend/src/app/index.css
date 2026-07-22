@@ -88,7 +88,7 @@ svg {
 .secondary-button,
 .primary-button,
 .back-button,
-.test-row,
+.test-tile,
 .segmented-control button {
   border: 0;
   border-radius: 0.25rem;
@@ -331,86 +331,50 @@ svg {
 }
 
 /* —— Hub tests —— */
-.hub-heading {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 0.65rem;
+.hub-page {
+  flex: 1;
+  min-height: 100%;
 }
 
-.hub-heading-actions-only {
+.hub-footer {
+  display: flex;
   justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 0.35rem;
 }
 
-.test-list {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-}
-
-.test-row {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
+.test-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-  min-height: 2.65rem;
-  padding: 0.5rem 0.65rem;
-  text-align: left;
+}
+
+.test-tile {
+  display: flex;
+  min-height: 3.4rem;
+  align-items: center;
+  justify-content: center;
+  padding: 0.65rem 0.75rem;
+  text-align: center;
   background: #343434;
   color: #ffffff;
+  font-size: 1.02rem;
+  font-weight: 650;
+  line-height: 1.25;
 }
 
-.test-row.ready:hover {
+.test-tile.ready:hover {
   background: #3d3d3d;
 }
 
-.test-row.ready:focus-visible {
+.test-tile.ready:focus-visible {
   outline: 2px solid rgb(165 243 252 / 45%);
   outline-offset: 1px;
 }
 
-.test-row.disabled {
+.test-tile.disabled {
   background: #2c2c2b;
-  color: #8a8a86;
-}
-
-.test-row-copy {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.05rem;
-}
-
-.test-row-copy strong {
-  font-size: 1.02rem;
-  font-weight: 650;
-}
-
-.test-row-copy span {
-  font-size: 0.86rem;
-  color: #9a9a96;
-}
-
-.test-row.disabled .test-row-copy span {
-  color: #6a6a66;
-}
-
-.test-badge {
-  flex-shrink: 0;
-  padding: 0.2rem 0.45rem;
-  border-radius: 0.2rem;
-  background: #1d7f47;
-  color: #ffffff;
-  font-size: 0.72rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-
-.test-badge.soon {
-  background: #3d4142;
-  color: #b0b0ac;
+  color: #6e6e6a;
 }
 
 /* —— Processor —— */

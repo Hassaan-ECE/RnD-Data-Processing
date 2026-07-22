@@ -75,10 +75,10 @@ describe("RnD Data Processing UI", () => {
     render(<App />);
 
     expect(screen.getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /System 208V/i })).toBeEnabled();
-    expect(screen.getByRole("button", { name: /System 415V/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Sub-feed 208V/i })).toBeDisabled();
-    expect(screen.getByRole("button", { name: /Sub-feed 415V/i })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "System 208V" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "System 415V" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sub-feed 208V" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Sub-feed 415V" })).toBeDisabled();
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: "Browse setup file" }));
@@ -88,7 +88,7 @@ describe("RnD Data Processing UI", () => {
     expect(await screen.findByText("13 targets")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Browse setup file" })).toBeEnabled());
 
-    fireEvent.click(screen.getByRole("button", { name: /System 208V/i }));
+    fireEvent.click(screen.getByRole("button", { name: "System 208V" }));
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "System 208V" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
