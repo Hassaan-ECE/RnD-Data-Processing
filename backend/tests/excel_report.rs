@@ -102,10 +102,13 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
         .filter_map(|(_, _, cell)| cell.as_string())
         .collect::<Vec<_>>();
     assert!(
-        meter_strings
-            .iter()
-            .any(|value| value.starts_with("Averaged Data - ") && value.contains("A (")),
-        "Meter Detail should insert yellow-style average section rows per load band"
+        meter_strings.iter().any(|value| {
+            value.starts_with("Averaged Data - ")
+                && value.contains('\n')
+                && value.contains("Used ")
+                && value.contains(" pts)")
+        }),
+        "Meter Detail should insert two-line yellow average section rows per load band"
     );
     // Status column removed — used/skipped is whole-row highlighting only.
     assert!(!meter_strings.iter().any(|value| value == "Status"));
