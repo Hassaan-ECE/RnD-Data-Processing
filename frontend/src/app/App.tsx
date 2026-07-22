@@ -5,6 +5,7 @@ import { ProcessorPage } from "../features/processor/ProcessorPage";
 import { UpdateActionButton } from "../features/updates/UpdateActionButton";
 import { useDesktopUpdates } from "../features/updates/useDesktopUpdates";
 import { getAppVersion, isTauriRuntime } from "../integrations/tauri/backend";
+import { ScrollRegion } from "../shared/ui/ScrollRegion";
 
 const SETUP_STORAGE_KEY = "rnd-data-processing.setup-path";
 
@@ -58,22 +59,24 @@ export function App() {
         {announcement}
       </span>
       <main className="app-main">
-        {page === "hub" ? (
-          <HubPage
-            setupPath={setupPath}
-            onSetupPathChange={setSetupPath}
-            onOpenSystem208v={() => setPage("system_208v")}
-            announce={announce}
-            updateControl={updateControl}
-          />
-        ) : (
-          <ProcessorPage
-            setupPath={setupPath}
-            onSetupPathChange={setSetupPath}
-            onBack={() => setPage("hub")}
-            announce={announce}
-          />
-        )}
+        <ScrollRegion className="app-scroll" aria-label="Application content">
+          {page === "hub" ? (
+            <HubPage
+              setupPath={setupPath}
+              onSetupPathChange={setSetupPath}
+              onOpenSystem208v={() => setPage("system_208v")}
+              announce={announce}
+              updateControl={updateControl}
+            />
+          ) : (
+            <ProcessorPage
+              setupPath={setupPath}
+              onSetupPathChange={setSetupPath}
+              onBack={() => setPage("hub")}
+              announce={announce}
+            />
+          )}
+        </ScrollRegion>
       </main>
     </div>
   );

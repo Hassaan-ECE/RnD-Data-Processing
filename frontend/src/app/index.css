@@ -75,8 +75,12 @@ svg {
   flex: 1;
   min-height: 0;
   flex-direction: column;
-  overflow: auto;
-  padding: 0.65rem;
+  overflow: hidden;
+}
+
+.app-scroll {
+  flex: 1;
+  min-height: 0;
 }
 
 .page-stack {
@@ -85,6 +89,76 @@ svg {
   flex: 1;
   flex-direction: column;
   gap: 0.65rem;
+  padding: 0.65rem;
+}
+
+/* —— PDU-style scroll region (hidden native bar + edge cues) —— */
+.scroll-region {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scroll-region-viewport {
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.scroll-region-viewport::-webkit-scrollbar {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+.scroll-region-content {
+  min-height: 100%;
+}
+
+.scroll-cue {
+  pointer-events: none;
+  position: absolute;
+  z-index: 10;
+  display: flex;
+  width: 100%;
+  height: 2rem;
+  justify-content: center;
+}
+
+.scroll-cue-top {
+  top: 0;
+  align-items: flex-start;
+  padding-top: 0.25rem;
+  background: linear-gradient(to bottom, #20201f, transparent);
+}
+
+.scroll-cue-bottom {
+  bottom: 0;
+  align-items: flex-end;
+  padding-bottom: 0.25rem;
+  background: linear-gradient(to top, #20201f, transparent);
+}
+
+.scroll-cue-chevron {
+  display: block;
+  width: 0;
+  height: 0;
+  border-style: solid;
+}
+
+.scroll-cue-chevron-up {
+  border-width: 0 4px 6px;
+  border-color: transparent transparent rgb(255 255 255 / 45%);
+}
+
+.scroll-cue-chevron-down {
+  border-width: 6px 4px 0;
+  border-color: rgb(255 255 255 / 45%) transparent transparent;
 }
 
 /* —— Buttons —— */
