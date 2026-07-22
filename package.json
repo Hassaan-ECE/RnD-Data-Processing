@@ -12,13 +12,15 @@
     "dev:frontend": "bun --bun vite --config frontend/vite.config.ts",
     "build": "bun --bun tsc -b && bun --bun vite build --config frontend/vite.config.ts",
     "build:frontend": "bun --bun tsc -b && bun --bun vite build --config frontend/vite.config.ts",
-    "desktop": "cargo tauri dev --features desktop --config backend/tauri.conf.json",
-    "dev:desktop": "cargo tauri dev --features desktop --config backend/tauri.conf.json",
-    "build:desktop": "cargo tauri build --features desktop --config backend/tauri.conf.json --bundles nsis",
+    "tauri": "tauri",
+    "desktop": "bun run tauri dev --features desktop --config backend/tauri.conf.json",
+    "dev:desktop": "bun run tauri dev --features desktop --config backend/tauri.conf.json",
+    "build:desktop": "bun run tauri build --features desktop --config backend/tauri.conf.json --bundles nsis",
     "build:desktop:unsigned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-unsigned-installer.ps1",
     "test": "bun --bun vitest run --config frontend/vite.config.ts",
     "test:frontend": "bun --bun vitest run --config frontend/vite.config.ts",
     "check:versions": "node scripts/check-version-consistency.mjs",
+    "check:tauri-cli": "node scripts/check-local-tauri-cli.mjs",
     "pipeline": "cargo run --manifest-path backend/Cargo.toml --bin rnd-pipeline --"
   },
   "dependencies": {

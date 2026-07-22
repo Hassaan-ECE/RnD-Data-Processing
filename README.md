@@ -29,7 +29,7 @@ bun install
 bun run desktop
 ```
 
-`bun run desktop` starts Vite, compiles the Rust/Tauri backend with its `desktop` feature, and opens one `RnD Data Processing` window.
+`bun run desktop` uses the repository-local `@tauri-apps/cli` installed by Bun, starts Vite, compiles the Rust/Tauri backend with its `desktop` feature, and opens one `RnD Data Processing` window. A global `cargo-tauri` installation is not required.
 
 ## Generate a System 208V report
 
@@ -73,6 +73,7 @@ Add `--output "C:\Path\To\Reports"` for a custom output directory.
 ```powershell
 cd "C:\Projects\Active\RnD Data Processing"
 bun run check:versions
+bun run check:tauri-cli
 bun run test:frontend
 bun run build:frontend
 cargo fmt --manifest-path backend/Cargo.toml --check

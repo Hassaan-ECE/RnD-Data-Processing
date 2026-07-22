@@ -19,7 +19,7 @@ bun install
 bun run desktop
 ```
 
-The finalized command launches one responsive window titled `RnD Data Processing`.
+The finalized command uses the repository-local `@tauri-apps/cli` installed by `bun install` and launches one responsive window titled `RnD Data Processing`; no global `cargo-tauri` installation is required.
 
 ## Generate a report
 
@@ -93,6 +93,7 @@ All of these passed:
 ```powershell
 bun install --frozen-lockfile
 bun run check:versions
+bun run check:tauri-cli
 bun run test:frontend
 bun run build:frontend
 cargo fmt --manifest-path backend/Cargo.toml --check
@@ -104,6 +105,7 @@ Observed results:
 
 - Bun checked 138 installs across 203 packages with no changes.
 - Version check reported `Version consistency OK: 0.1.0`.
+- Local Tauri CLI wiring check confirmed all desktop/build entry points use `node_modules/.bin/tauri` rather than host-global `cargo-tauri`.
 - Frontend workflow: 1 test passed, exercising Hub → processor → generation/open actions → Back.
 - Rust: 17 tests passed across unit and integration targets; 0 failed.
 - Production frontend built successfully: 1,783 modules, 212.17 kB JavaScript before gzip.
@@ -143,6 +145,7 @@ The exact pipeline and workbook-inspection output was captured during verificati
 - The first `bun run desktop` attempt exposed that Cargo had two binaries and no default. Commit `33bcd49` fixed the root cause by setting `default-run = "rnd-data-processing"`.
 - Two subsequent clean launches reached `target\debug\rnd-data-processing.exe`.
 - Windows reported one responsive visible window titled `RnD Data Processing` on both launches.
+- A targeted launch removed the host-global `cargo-tauri` directory from `PATH`, exposed only the existing Cargo/Rust tools through temporary verifier shims, and still reached one responsive window through the `$ tauri dev` command trace.
 - A live Hub screenshot was captured with Windows `PrintWindow`.
 - The React browser-like test separately exercised Hub → processor → Back and all required controls/actions.
 
@@ -168,10 +171,10 @@ Smoke-test artifact produced outside Git:
 
 ```text
 C:\Projects\Active\RnD Data Processing\backend\target\release\bundle\nsis\RnD Data Processing_0.1.0_x64-setup.exe
-Size observed in the final replay: 4,316,151 bytes
+Size observed in the final local-CLI replay: approximately 4.32 MB; exact bytes vary with build metadata
 ```
 
-The tested `bun run build:desktop:unsigned` helper completed with exit code `0`. Its first bundle attempt reproduced OS error 1224; the bounded helper cleaned the partial output, waited, and succeeded on attempt 2. The final replay artifact size was `4,316,151` bytes; installer size can vary slightly with build metadata.
+The tested `bun run build:desktop:unsigned` helper completed with exit code `0` and produced the installer. The final command trace used `$ tauri build` and `$ tauri bundle` from the repository-local CLI and contained no `$ cargo tauri` invocation. The bounded retry remains in place for transient OS error 1224.
 
 The fallback intentionally skipped signing and emitted no `.sig`. Tauri also warned that `__TAURI_BUNDLE_TYPE` was not found while rebundling the cached binary, so this local installer validates NSIS creation but is not the production updater artifact. The exact helper output was captured during verification; the durable result is summarized above.
 

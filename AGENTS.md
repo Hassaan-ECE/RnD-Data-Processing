@@ -11,6 +11,7 @@ These instructions apply to the entire repository.
 - Never replace missing or malformed measurements with silent zeroes. Return clear errors or write `N/A` only where the report format requires it.
 - Preserve the System 208V mappings in `config/auto-channel-groups.json` and `config/tests.registry.json`.
 - Keep `package.json`, `backend/Cargo.toml`, and `backend/tauri.conf.json` on the same app version.
+- Invoke Tauri through the repository-local `@tauri-apps/cli` with Bun; do not add a host-global `cargo tauri` dependency.
 - Never commit private keys, passwords, installers, updater signatures, or large lab captures.
 
 ## Architecture
@@ -27,6 +28,7 @@ These instructions apply to the entire repository.
 ```powershell
 bun install
 bun run desktop
+bun run check:tauri-cli
 bun run test:frontend
 bun run build:frontend
 cargo fmt --manifest-path backend/Cargo.toml --check
