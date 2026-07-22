@@ -14,12 +14,15 @@ import {
   isTauriRuntime,
   loadSetupFile,
   openPath,
+  previewLoadBands,
   runSystem208vReport,
   scanDataFolder,
+  type BandPreviewResult,
   type DiscoveryResult,
   type PipelineResult,
   type SetupLoadResult,
 } from "../../integrations/tauri/backend";
+import { LoadRangeSidebar } from "./LoadRangeSidebar";
 
 interface ProcessorPageProps {
   setupPath: string;
@@ -47,6 +50,19 @@ export function ProcessorPage({
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [preview, setPreview] = useState<BandPreviewResult | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewError, setPreviewError] = useState("");
+
+  const reduceOptions = useMemo(
+    () => ({
+      mode: reduceMode,
+      skipStart: reduceMode === "trim" ? skipStart : 0,
+      skipEnd,
+      windowSize: reduceMode === "window" ? windowSize : 20,
+    }),
+    [reduceMode, skipStart, skipEnd, windowSize],
+  );
 
   useEffect(() => {
     if (!setupPath || !isTauriRuntime()) {
@@ -71,6 +87,46 @@ export function ProcessorPage({
       active = false;
     };
   }, [setupPath]);
+
+  // Live load-range rail: re-run light preview when setup/data/tolerance/method change.
+  useEffect(() => {
+    if (!setupPath || !isTauriRuntime() || tolerance <= 0) {
+      setPreview(null);
+      setPreviewError("");
+      return;
+    }
+    let active = true;
+    const handle = window.setTimeout(() => {
+      setPreviewLoading(true);
+      previewLoadBands({
+        setupPath,
+        dataFolder: dataFolder || null,
+        tolerancePercent: tolerance,
+        reduce: reduceOptions,
+      })
+        .then((next) => {
+          if (active) {
+            setPreview(next);
+            setPreviewError("");
+          }
+        })
+        .catch((previewFailure) => {
+          if (active) {
+            setPreview(null);
+            setPreviewError(errorMessage(previewFailure));
+          }
+        })
+        .finally(() => {
+          if (active) {
+            setPreviewLoading(false);
+          }
+        });
+    }, 280);
+    return () => {
+      active = false;
+      window.clearTimeout(handle);
+    };
+  }, [setupPath, dataFolder, tolerance, reduceOptions]);
 
   const defaultOutput = useMemo(
     () => (dataFolder ? `${dataFolder}\\System_208V_Accuracy_Reports` : "Select a data folder first"),
@@ -146,12 +202,7 @@ export function ProcessorPage({
         setupPath,
         outputDir: outputMode === "custom" ? customOutput || null : null,
         tolerancePercent: tolerance,
-        reduce: {
-          mode: reduceMode,
-          skipStart: reduceMode === "trim" ? skipStart : 0,
-          skipEnd,
-          windowSize: reduceMode === "window" ? windowSize : 20,
-        },
+        reduce: reduceOptions,
       });
       setResult(pipelineResult);
       const message = `${pipelineResult.successCount} report${pipelineResult.successCount === 1 ? "" : "s"} generated`;
@@ -193,266 +244,279 @@ export function ProcessorPage({
         <div className="runtime-banner">Desktop mode is required to browse files and run the pipeline.</div>
       ) : null}
 
-      <section className="panel" aria-labelledby="inputs-heading">
-        <div className="section-heading">
-          <h2 id="inputs-heading">Inputs</h2>
-          {setupSummary ? (
-            <span className="status-chip success">{setupSummary.targets.length} load points</span>
+      <div className="processor-layout">
+        <div className="processor-main">
+          <section className="panel" aria-labelledby="inputs-heading">
+            <div className="section-heading">
+              <h2 id="inputs-heading">Inputs</h2>
+              {setupSummary ? (
+                <span className="status-chip success">{setupSummary.targets.length} load points</span>
+              ) : null}
+            </div>
+
+            <PathRow
+              icon={<FileSpreadsheet />}
+              label="Setup workbook"
+              value={setupPath || "No setup workbook selected"}
+              action="Change"
+              onAction={selectSetup}
+            />
+            <PathRow
+              icon={<FolderOpen />}
+              label="Data folder"
+              value={dataFolder || "Select folder with Real-Time + Auto CSVs"}
+              action="Browse"
+              onAction={selectDataFolder}
+              disabled={busy}
+            />
+
+            <div className="options-grid">
+              <div>
+                <label className="field-label" htmlFor="tolerance-input">
+                  Match tolerance (±%)
+                </label>
+                <div className="number-field">
+                  <input
+                    id="tolerance-input"
+                    type="number"
+                    min="0.1"
+                    max="100"
+                    step="0.1"
+                    value={tolerance}
+                    onChange={(event) => setTolerance(Number(event.target.value))}
+                  />
+                  <span>%</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="reduce-block">
+              <span className="field-label">Average method</span>
+              <div className="segmented-control" role="radiogroup" aria-label="Average method">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={reduceMode === "trim"}
+                  className={reduceMode === "trim" ? "active" : ""}
+                  onClick={() => setReduceMode("trim")}
+                  title="Skip rows from the start and end, then average the rest."
+                >
+                  Standard trim
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={reduceMode === "window"}
+                  className={reduceMode === "window" ? "active" : ""}
+                  onClick={() => setReduceMode("window")}
+                  title="Skip rows from the end, then take a fixed number of points backwards."
+                >
+                  Fixed window
+                </button>
+              </div>
+              <div className="options-grid reduce-params">
+                {reduceMode === "trim" ? (
+                  <div>
+                    <label className="field-label" htmlFor="skip-start-input">
+                      Skip start
+                    </label>
+                    <div className="number-field">
+                      <input
+                        id="skip-start-input"
+                        type="number"
+                        min="0"
+                        max="500"
+                        step="1"
+                        value={skipStart}
+                        onChange={(event) => setSkipStart(Math.max(0, Number(event.target.value) || 0))}
+                      />
+                      <span>rows</span>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <label className="field-label" htmlFor="window-size-input">
+                      Window size
+                    </label>
+                    <div className="number-field">
+                      <input
+                        id="window-size-input"
+                        type="number"
+                        min="1"
+                        max="500"
+                        step="1"
+                        value={windowSize}
+                        onChange={(event) => setWindowSize(Math.max(1, Number(event.target.value) || 1))}
+                      />
+                      <span>pts</span>
+                    </div>
+                  </div>
+                )}
+                <div>
+                  <label className="field-label" htmlFor="skip-end-input">
+                    Skip end
+                  </label>
+                  <div className="number-field">
+                    <input
+                      id="skip-end-input"
+                      type="number"
+                      min="0"
+                      max="500"
+                      step="1"
+                      value={skipEnd}
+                      onChange={(event) => setSkipEnd(Math.max(0, Number(event.target.value) || 0))}
+                    />
+                    <span>rows</span>
+                  </div>
+                </div>
+              </div>
+              <p className="help-text">
+                {reduceMode === "trim"
+                  ? "Per load band: drop the first/last rows, then average what remains (same as Python Mode A)."
+                  : "Per load band: drop the last rows, then average the previous N points (same as Python Mode B)."}
+              </p>
+            </div>
+          </section>
+
+          <section className="panel" aria-labelledby="detected-heading">
+            <div className="section-heading">
+              <h2 id="detected-heading">Detected</h2>
+              {discovery ? (
+                <span className="status-chip success">Ready</span>
+              ) : (
+                <span className="status-chip">Waiting</span>
+              )}
+            </div>
+            {discovery ? (
+              <div className="detected-list">
+                <DetectedItem title="Yokogawa Auto" detail={discovery.autoFileName} badge="shared" />
+                {discovery.meters.map((meter) => (
+                  <DetectedItem
+                    key={meter.id}
+                    title={meter.label}
+                    detail={meter.fileName}
+                    badge={meter.autoGroupId}
+                  />
+                ))}
+                {discovery.warnings.map((warning) => (
+                  <p className="warning-line" key={warning}>
+                    {warning}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <div className="empty-state">Browse a data folder to detect meters and Auto CSV.</div>
+            )}
+          </section>
+
+          <section className="panel" aria-labelledby="output-heading">
+            <div className="section-heading">
+              <h2 id="output-heading">Output</h2>
+            </div>
+            <div className="segmented-control" role="radiogroup" aria-label="Output folder mode">
+              <button
+                type="button"
+                role="radio"
+                aria-checked={outputMode === "default"}
+                className={outputMode === "default" ? "active" : ""}
+                onClick={() => setOutputMode("default")}
+              >
+                Default folder
+              </button>
+              <button
+                type="button"
+                role="radio"
+                aria-checked={outputMode === "custom"}
+                className={outputMode === "custom" ? "active" : ""}
+                onClick={() => setOutputMode("custom")}
+              >
+                Custom folder
+              </button>
+            </div>
+            <div className="output-path">
+              <span>{outputMode === "default" ? defaultOutput : customOutput || "No custom folder selected"}</span>
+            </div>
+            {outputMode === "custom" ? (
+              <button className="secondary-button full-width" type="button" onClick={selectCustomOutput}>
+                Browse output folder
+              </button>
+            ) : null}
+          </section>
+
+          <section className="panel action-stack" aria-labelledby="generate-heading">
+            <div className="section-heading">
+              <h2 id="generate-heading">Run</h2>
+            </div>
+            <button className="primary-button" type="button" disabled={!canGenerate} onClick={generate}>
+              {busy ? <LoaderCircle className="spin" /> : null}
+              {busy ? "Processing..." : "Generate reports"}
+            </button>
+            <div className="open-actions">
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={!successfulReports.length || busy}
+                onClick={openReports}
+              >
+                <ExternalLink /> Open report(s)
+              </button>
+              <button
+                className="secondary-button"
+                type="button"
+                disabled={!result?.outputDir || busy}
+                onClick={openOutputFolder}
+              >
+                <FolderOpen /> Open folder
+              </button>
+            </div>
+          </section>
+
+          {error ? (
+            <div className="result-banner error" role="alert">
+              <div>
+                <strong>Processing stopped</strong>
+                <span>{error}</span>
+              </div>
+            </div>
+          ) : null}
+          {result ? (
+            <section
+              className={`result-banner ${result.failureCount ? "warning" : "success"}`}
+              aria-live="polite"
+            >
+              <div>
+                <strong>
+                  {result.successCount} reports generated
+                  {result.failureCount ? `, ${result.failureCount} failed` : ""}
+                </strong>
+                <span>
+                  {result.targetCount} load points · {result.durationMs} ms
+                </span>
+                <span>{result.outputDir}</span>
+                <div className="report-links">
+                  {result.reports.map((report) => (
+                    <span
+                      key={report.meterId}
+                      className={report.status === "success" ? "report-pill" : "report-pill failed"}
+                    >
+                      {report.meterLabel}: {report.status === "success" ? "Ready" : report.error}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </section>
           ) : null}
         </div>
 
-        <PathRow
-          icon={<FileSpreadsheet />}
-          label="Setup workbook"
-          value={setupPath || "No setup workbook selected"}
-          action="Change"
-          onAction={selectSetup}
+        <LoadRangeSidebar
+          tolerance={tolerance}
+          preview={preview}
+          loading={previewLoading}
+          error={previewError}
+          hasSetup={Boolean(setupPath && setupSummary)}
+          hasData={Boolean(dataFolder && discovery)}
         />
-        <PathRow
-          icon={<FolderOpen />}
-          label="Data folder"
-          value={dataFolder || "Select folder with Real-Time + Auto CSVs"}
-          action="Browse"
-          onAction={selectDataFolder}
-          disabled={busy}
-        />
-
-        <div className="options-grid">
-          <div>
-            <label className="field-label" htmlFor="tolerance-input">
-              Match tolerance (±%)
-            </label>
-            <div className="number-field">
-              <input
-                id="tolerance-input"
-                type="number"
-                min="0.1"
-                max="100"
-                step="0.1"
-                value={tolerance}
-                onChange={(event) => setTolerance(Number(event.target.value))}
-              />
-              <span>%</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="reduce-block">
-          <span className="field-label">Average method</span>
-          <div className="segmented-control" role="radiogroup" aria-label="Average method">
-            <button
-              type="button"
-              role="radio"
-              aria-checked={reduceMode === "trim"}
-              className={reduceMode === "trim" ? "active" : ""}
-              onClick={() => setReduceMode("trim")}
-              title="Skip rows from the start and end, then average the rest."
-            >
-              Standard trim
-            </button>
-            <button
-              type="button"
-              role="radio"
-              aria-checked={reduceMode === "window"}
-              className={reduceMode === "window" ? "active" : ""}
-              onClick={() => setReduceMode("window")}
-              title="Skip rows from the end, then take a fixed number of points backwards."
-            >
-              Fixed window
-            </button>
-          </div>
-          <div className="options-grid reduce-params">
-            {reduceMode === "trim" ? (
-              <div>
-                <label className="field-label" htmlFor="skip-start-input">
-                  Skip start
-                </label>
-                <div className="number-field">
-                  <input
-                    id="skip-start-input"
-                    type="number"
-                    min="0"
-                    max="500"
-                    step="1"
-                    value={skipStart}
-                    onChange={(event) => setSkipStart(Math.max(0, Number(event.target.value) || 0))}
-                  />
-                  <span>rows</span>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <label className="field-label" htmlFor="window-size-input">
-                  Window size
-                </label>
-                <div className="number-field">
-                  <input
-                    id="window-size-input"
-                    type="number"
-                    min="1"
-                    max="500"
-                    step="1"
-                    value={windowSize}
-                    onChange={(event) => setWindowSize(Math.max(1, Number(event.target.value) || 1))}
-                  />
-                  <span>pts</span>
-                </div>
-              </div>
-            )}
-            <div>
-              <label className="field-label" htmlFor="skip-end-input">
-                Skip end
-              </label>
-              <div className="number-field">
-                <input
-                  id="skip-end-input"
-                  type="number"
-                  min="0"
-                  max="500"
-                  step="1"
-                  value={skipEnd}
-                  onChange={(event) => setSkipEnd(Math.max(0, Number(event.target.value) || 0))}
-                />
-                <span>rows</span>
-              </div>
-            </div>
-          </div>
-          <p className="help-text">
-            {reduceMode === "trim"
-              ? "Per load band: drop the first/last rows, then average what remains (same as Python Mode A)."
-              : "Per load band: drop the last rows, then average the previous N points (same as Python Mode B)."}
-          </p>
-        </div>
-      </section>
-
-      <section className="panel" aria-labelledby="detected-heading">
-        <div className="section-heading">
-          <h2 id="detected-heading">Detected</h2>
-          {discovery ? (
-            <span className="status-chip success">Ready</span>
-          ) : (
-            <span className="status-chip">Waiting</span>
-          )}
-        </div>
-        {discovery ? (
-          <div className="detected-list">
-            <DetectedItem title="Yokogawa Auto" detail={discovery.autoFileName} badge="shared" />
-            {discovery.meters.map((meter) => (
-              <DetectedItem
-                key={meter.id}
-                title={meter.label}
-                detail={meter.fileName}
-                badge={meter.autoGroupId}
-              />
-            ))}
-            {discovery.warnings.map((warning) => (
-              <p className="warning-line" key={warning}>
-                {warning}
-              </p>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">Browse a data folder to detect meters and Auto CSV.</div>
-        )}
-      </section>
-
-      <section className="panel" aria-labelledby="output-heading">
-        <div className="section-heading">
-          <h2 id="output-heading">Output</h2>
-        </div>
-        <div className="segmented-control" role="radiogroup" aria-label="Output folder mode">
-          <button
-            type="button"
-            role="radio"
-            aria-checked={outputMode === "default"}
-            className={outputMode === "default" ? "active" : ""}
-            onClick={() => setOutputMode("default")}
-          >
-            Default folder
-          </button>
-          <button
-            type="button"
-            role="radio"
-            aria-checked={outputMode === "custom"}
-            className={outputMode === "custom" ? "active" : ""}
-            onClick={() => setOutputMode("custom")}
-          >
-            Custom folder
-          </button>
-        </div>
-        <div className="output-path">
-          <span>{outputMode === "default" ? defaultOutput : customOutput || "No custom folder selected"}</span>
-        </div>
-        {outputMode === "custom" ? (
-          <button className="secondary-button full-width" type="button" onClick={selectCustomOutput}>
-            Browse output folder
-          </button>
-        ) : null}
-      </section>
-
-      <section className="panel action-stack" aria-labelledby="generate-heading">
-        <div className="section-heading">
-          <h2 id="generate-heading">Run</h2>
-        </div>
-        <button className="primary-button" type="button" disabled={!canGenerate} onClick={generate}>
-          {busy ? <LoaderCircle className="spin" /> : null}
-          {busy ? "Processing..." : "Generate reports"}
-        </button>
-        <div className="open-actions">
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={!successfulReports.length || busy}
-            onClick={openReports}
-          >
-            <ExternalLink /> Open report(s)
-          </button>
-          <button
-            className="secondary-button"
-            type="button"
-            disabled={!result?.outputDir || busy}
-            onClick={openOutputFolder}
-          >
-            <FolderOpen /> Open folder
-          </button>
-        </div>
-      </section>
-
-      {error ? (
-        <div className="result-banner error" role="alert">
-          <div>
-            <strong>Processing stopped</strong>
-            <span>{error}</span>
-          </div>
-        </div>
-      ) : null}
-      {result ? (
-        <section
-          className={`result-banner ${result.failureCount ? "warning" : "success"}`}
-          aria-live="polite"
-        >
-          <div>
-            <strong>
-              {result.successCount} reports generated
-              {result.failureCount ? `, ${result.failureCount} failed` : ""}
-            </strong>
-            <span>
-              {result.targetCount} load points · {result.durationMs} ms
-            </span>
-            <span>{result.outputDir}</span>
-            <div className="report-links">
-              {result.reports.map((report) => (
-                <span
-                  key={report.meterId}
-                  className={report.status === "success" ? "report-pill" : "report-pill failed"}
-                >
-                  {report.meterLabel}: {report.status === "success" ? "Ready" : report.error}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-      ) : null}
+      </div>
     </div>
   );
 }

@@ -14,6 +14,7 @@ pub fn run() {
             commands::scan_data_folder,
             commands::load_setup_file,
             commands::run_system_208v_report,
+            commands::preview_load_bands_async,
             commands::open_path
         ])
         .run(tauri::generate_context!())

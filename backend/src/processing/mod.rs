@@ -3,6 +3,7 @@ pub mod discover;
 pub mod excel_write;
 pub mod pipeline;
 pub mod preprocess;
+pub mod preview;
 pub mod segment;
 pub mod setup;
 

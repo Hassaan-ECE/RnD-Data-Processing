@@ -5,6 +5,7 @@ use crate::processing::setup::{load_setup_targets, SetupLoadResult};
 
 #[cfg(feature = "desktop")]
 use crate::processing::pipeline::{self, PipelineInput, PipelineResult};
+use crate::processing::preview::{self, BandPreviewResult, PreviewInput};
 
 #[cfg_attr(feature = "desktop", tauri::command)]
 pub fn get_app_version() -> &'static str {
@@ -35,6 +36,20 @@ pub async fn run_system_208v_report(input: PipelineInput) -> AppResult<PipelineR
     tauri::async_runtime::spawn_blocking(move || pipeline::run_system_208v(input))
         .await
         .map_err(|error| AppError::Message(format!("Report worker failed: {error}")))?
+}
+
+#[cfg_attr(feature = "desktop", tauri::command)]
+pub fn preview_load_bands(input: PreviewInput) -> AppResult<BandPreviewResult> {
+    preview::preview_load_bands(input)
+}
+
+// Async wrapper keeps heavy CSV work off the UI thread in desktop builds.
+#[cfg(feature = "desktop")]
+#[tauri::command]
+pub async fn preview_load_bands_async(input: PreviewInput) -> AppResult<BandPreviewResult> {
+    tauri::async_runtime::spawn_blocking(move || preview::preview_load_bands(input))
+        .await
+        .map_err(|error| AppError::Message(format!("Preview worker failed: {error}")))?
 }
 
 #[cfg(feature = "desktop")]

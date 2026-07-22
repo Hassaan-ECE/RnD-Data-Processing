@@ -130,6 +130,49 @@ export async function runSystem208vReport(input: PipelineInput): Promise<Pipelin
   return invoke<PipelineResult>("run_system_208v_report", { input });
 }
 
+export type BandHealth = "ok" | "short" | "empty";
+
+export interface MeterMatchCount {
+  id: string;
+  label: string;
+  matched: number;
+  usable: number;
+  health: BandHealth;
+}
+
+export interface LoadPointPreview {
+  loadPercent: number;
+  targetAmps: number;
+  ampLow: number;
+  ampHigh: number;
+  autoMatched: number;
+  autoUsable: number;
+  autoHealth: BandHealth;
+  meters: MeterMatchCount[];
+  verdict: string;
+}
+
+export interface BandPreviewResult {
+  setupSheet: string;
+  tolerancePercent: number;
+  reduce: ReduceOptions;
+  hasData: boolean;
+  points: LoadPointPreview[];
+  warnings: string[];
+}
+
+export interface PreviewInput {
+  setupPath: string;
+  dataFolder: string | null;
+  tolerancePercent: number;
+  reduce: ReduceOptions;
+  testId?: string;
+}
+
+export async function previewLoadBands(input: PreviewInput): Promise<BandPreviewResult> {
+  return invoke<BandPreviewResult>("preview_load_bands_async", { input });
+}
+
 export async function openPath(path: string): Promise<void> {
   return invoke<void>("open_path", { path });
 }
