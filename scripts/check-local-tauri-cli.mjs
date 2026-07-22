@@ -34,9 +34,14 @@ const helper = await readFile(helperPath, "utf8");
 if (/cargo\s+tauri/i.test(helper)) {
   throw new Error("Unsigned installer helper must not invoke host-global cargo-tauri");
 }
-for (const invocation of ["bun run tauri build", "bun run tauri bundle"]) {
-  if (!helper.includes(invocation)) {
-    throw new Error(`Unsigned installer helper is missing '${invocation}'`);
+for (const invocationMarker of ['"bun run tauri "', '@("build"', '@("bundle"', '"--no-sign"']) {
+  if (!helper.includes(invocationMarker)) {
+    throw new Error(`Unsigned installer helper is missing '${invocationMarker}'`);
+  }
+}
+for (const boundedExecutionMarker of ["WaitForExit", "taskkill.exe", "$bundleTimeoutSeconds"]) {
+  if (!helper.includes(boundedExecutionMarker)) {
+    throw new Error(`Unsigned installer helper is missing bounded execution marker '${boundedExecutionMarker}'`);
   }
 }
 
