@@ -124,7 +124,7 @@ describe("RnD Data Processing UI", () => {
     await waitFor(() => expect(backend.openPath).toHaveBeenCalledWith(outputFolder));
 
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
-    expect(screen.getByRole("heading", { name: "Choose a lab workflow." })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Tests" })).toBeInTheDocument();
     expect(await screen.findByText("13 targets")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Browse setup file" })).toBeEnabled());
   });

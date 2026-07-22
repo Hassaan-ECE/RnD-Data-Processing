@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { FlaskConical, LoaderCircle, RefreshCw } from "lucide-react";
+import { LoaderCircle, RefreshCw } from "lucide-react";
 
 import { HubPage } from "../features/hub/HubPage";
 import { ProcessorPage } from "../features/processor/ProcessorPage";
@@ -32,22 +32,45 @@ export function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="brand-lockup">
-          <span className="brand-icon"><FlaskConical /></span>
-          <div><strong>RnD Data Processing</strong><span>TE Lab · v{version}</span></div>
+          <strong>RnD Data Processing</strong>
+          <span>v{version}</span>
         </div>
         <div className="header-actions">
-          <span className="announcement" aria-live="polite">{announcement}</span>
-          <button className="update-button" type="button" onClick={updates.runAction} disabled={["checking", "downloading", "installing"].includes(updates.state.status)}>
-            {updates.state.status === "checking" || updates.state.status === "downloading" || updates.state.status === "installing" ? <LoaderCircle className="spin" /> : <RefreshCw />}
+          <span className="announcement" aria-live="polite" title={announcement}>
+            {announcement}
+          </span>
+          <button
+            className="update-button"
+            type="button"
+            onClick={updates.runAction}
+            disabled={["checking", "downloading", "installing"].includes(updates.state.status)}
+          >
+            {updates.state.status === "checking" ||
+            updates.state.status === "downloading" ||
+            updates.state.status === "installing" ? (
+              <LoaderCircle className="spin" />
+            ) : (
+              <RefreshCw />
+            )}
             {updateButtonLabel(updates.state)}
           </button>
         </div>
       </header>
       <main className="app-main">
         {page === "hub" ? (
-          <HubPage setupPath={setupPath} onSetupPathChange={setSetupPath} onOpenSystem208v={() => setPage("system_208v")} announce={announce} />
+          <HubPage
+            setupPath={setupPath}
+            onSetupPathChange={setSetupPath}
+            onOpenSystem208v={() => setPage("system_208v")}
+            announce={announce}
+          />
         ) : (
-          <ProcessorPage setupPath={setupPath} onSetupPathChange={setSetupPath} onBack={() => setPage("hub")} announce={announce} />
+          <ProcessorPage
+            setupPath={setupPath}
+            onSetupPathChange={setSetupPath}
+            onBack={() => setPage("hub")}
+            announce={announce}
+          />
         )}
       </main>
     </div>
