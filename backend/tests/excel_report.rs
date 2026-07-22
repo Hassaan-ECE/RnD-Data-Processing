@@ -99,6 +99,9 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
             .any(|value| value.starts_with("Averaged Data - ") && value.contains("A (")),
         "Meter Detail should insert yellow-style average section rows per load band"
     );
-    assert!(meter_strings.iter().any(|value| value == "AVERAGE"));
-    assert!(meter_strings.iter().any(|value| value == "USED"));
+    // Status column removed — used/skipped is whole-row highlighting only.
+    assert!(!meter_strings.iter().any(|value| value == "Status"));
+    assert!(!meter_strings.iter().any(|value| value == "USED"));
+    assert!(!meter_strings.iter().any(|value| value == "SKIPPED"));
+    assert!(!meter_strings.iter().any(|value| value == "AVERAGE"));
 }

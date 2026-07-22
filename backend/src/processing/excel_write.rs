@@ -23,31 +23,64 @@ pub fn write_report_workbook(
         .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xD9EAF2))
         .set_border(FormatBorder::Thin);
-    let number_format = Format::new().set_num_format("0.000");
-    let used_format = Format::new().set_background_color(Color::RGB(0xE2F0D9));
-    let skipped_format = Format::new().set_background_color(Color::RGB(0xFCE4D6));
-    let average_format = Format::new()
+    let plain_center = Format::new().set_align(FormatAlign::Center);
+    let plain_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000");
+    let used_text = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xE2EFDA));
+    let used_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xE2EFDA));
+    let skipped_text = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xFCE4D6));
+    let skipped_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xFCE4D6));
+    let average_text = Format::new()
         .set_bold()
+        .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xFFFF00));
-    let average_number_format = Format::new()
+    let average_number = Format::new()
         .set_bold()
+        .set_align(FormatAlign::Center)
         .set_num_format("0.000")
         .set_background_color(Color::RGB(0xFFFF00));
     let section_format = Format::new()
         .set_bold()
-        .set_background_color(Color::RGB(0xE7E6E6));
-    let auto_format = Format::new().set_background_color(Color::RGB(0xDDEBF7));
-    let meter_format = Format::new().set_background_color(Color::RGB(0xE2F0D9));
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xEEEEEE));
+    let auto_text = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xDDEBF7));
+    let auto_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xDDEBF7));
+    let meter_text = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_background_color(Color::RGB(0xE2EFDA));
+    let meter_number = Format::new()
+        .set_align(FormatAlign::Center)
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xE2EFDA));
     let na_format = Format::new()
         .set_align(FormatAlign::Center)
         .set_background_color(Color::RGB(0xFFF2CC));
     let error_green = Format::new()
+        .set_align(FormatAlign::Center)
         .set_num_format("0.000")
         .set_background_color(Color::RGB(0xA9F5A9));
     let error_yellow = Format::new()
+        .set_align(FormatAlign::Center)
         .set_num_format("0.000")
         .set_background_color(Color::RGB(0xFFFF99));
     let error_red = Format::new()
+        .set_align(FormatAlign::Center)
         .set_num_format("0.000")
         .set_background_color(Color::RGB(0xFF9999));
 
@@ -60,11 +93,14 @@ pub fn write_report_workbook(
             &report.meter_table,
             &report.meter_bands,
             &header_format,
-            &number_format,
-            &used_format,
-            &skipped_format,
-            &average_format,
-            &average_number_format,
+            &plain_center,
+            &plain_number,
+            &used_text,
+            &used_number,
+            &skipped_text,
+            &skipped_number,
+            &average_text,
+            &average_number,
         )?;
     }
     {
@@ -75,11 +111,14 @@ pub fn write_report_workbook(
             &report.auto_table,
             &report.auto_bands,
             &header_format,
-            &number_format,
-            &used_format,
-            &skipped_format,
-            &average_format,
-            &average_number_format,
+            &plain_center,
+            &plain_number,
+            &used_text,
+            &used_number,
+            &skipped_text,
+            &skipped_number,
+            &average_text,
+            &average_number,
         )?;
     }
     {
@@ -88,10 +127,11 @@ pub fn write_report_workbook(
             worksheet,
             report,
             &header_format,
-            &number_format,
+            &auto_text,
+            &auto_number,
+            &meter_text,
+            &meter_number,
             &section_format,
-            &auto_format,
-            &meter_format,
             &na_format,
             [&error_green, &error_yellow, &error_red],
         )?;
@@ -107,21 +147,26 @@ fn write_detail_sheet(
     table: &MeasurementTable,
     bands: &[BandRows],
     header_format: &Format,
-    number_format: &Format,
-    used_format: &Format,
-    skipped_format: &Format,
-    average_format: &Format,
-    average_number_format: &Format,
+    plain_center: &Format,
+    plain_number: &Format,
+    used_text: &Format,
+    used_number: &Format,
+    skipped_text: &Format,
+    skipped_number: &Format,
+    average_text: &Format,
+    average_number: &Format,
 ) -> AppResult<()> {
     worksheet.set_name(name)?;
     worksheet.write_string_with_format(0, 0, "Time", header_format)?;
     for (index, header) in NUMERIC_HEADERS.iter().enumerate() {
         worksheet.write_string_with_format(0, (index + 1) as u16, *header, header_format)?;
     }
-    let status_column = (NUMERIC_HEADERS.len() + 1) as u16;
-    worksheet.write_string_with_format(0, status_column, "Status", header_format)?;
 
-    // Python-style sectioning: rows for each load band, then blank + yellow average + blank.
+    // Track max display width per column for tighter autofit-style widths.
+    let mut col_widths: Vec<f64> = std::iter::once(4.0_f64) // "Time"
+        .chain(NUMERIC_HEADERS.iter().map(|h| h.len() as f64))
+        .collect();
+
     let mut excel_row = 1_u32;
     let mut written = HashMap::<usize, ()>::new();
     for band in bands {
@@ -133,23 +178,24 @@ fn write_detail_sheet(
             let Some(row) = table.rows.get(*index) else {
                 continue;
             };
+            let is_used = used.contains_key(index);
             write_data_row(
                 worksheet,
                 excel_row,
                 row,
-                number_format,
-                Some(if used.contains_key(index) {
-                    ("USED", used_format)
+                if is_used { used_text } else { skipped_text },
+                if is_used {
+                    used_number
                 } else {
-                    ("SKIPPED", skipped_format)
-                }),
-                status_column,
+                    skipped_number
+                },
+                &mut col_widths,
             )?;
             written.insert(*index, ());
             excel_row += 1;
         }
 
-        // Blank separator (like Python)
+        // Blank separator
         excel_row += 1;
 
         let averages = average_rows(table, &band.used_indices)?;
@@ -159,28 +205,24 @@ fn write_detail_sheet(
             display_number(band.target.load_percent),
             band.used_indices.len()
         );
-        worksheet.write_string_with_format(excel_row, 0, &label, average_format)?;
+        note_width(&mut col_widths, 0, &label);
+        worksheet.write_string_with_format(excel_row, 0, &label, average_text)?;
         for (column_index, value) in averages.iter().enumerate() {
             let column = (column_index + 1) as u16;
             if let Some(value) = value {
-                worksheet.write_number_with_format(
-                    excel_row,
-                    column,
-                    *value,
-                    average_number_format,
-                )?;
+                note_width(&mut col_widths, column as usize, &format!("{value:.3}"));
+                worksheet.write_number_with_format(excel_row, column, *value, average_number)?;
             } else {
-                worksheet.write_string_with_format(excel_row, column, "N/A", average_format)?;
+                note_width(&mut col_widths, column as usize, "N/A");
+                worksheet.write_string_with_format(excel_row, column, "N/A", average_text)?;
             }
         }
-        worksheet.write_string_with_format(excel_row, status_column, "AVERAGE", average_format)?;
         excel_row += 1;
 
         // Blank after average
         excel_row += 1;
     }
 
-    // Any leftover rows not assigned to a load point (out of tolerance / unmatched).
     let mut leftovers = table
         .rows
         .iter()
@@ -192,18 +234,21 @@ fn write_detail_sheet(
         leftovers.sort_unstable();
         for index in leftovers {
             let row = &table.rows[index];
-            write_data_row(worksheet, excel_row, row, number_format, None, status_column)?;
+            write_data_row(
+                worksheet,
+                excel_row,
+                row,
+                plain_center,
+                plain_number,
+                &mut col_widths,
+            )?;
             excel_row += 1;
         }
     }
 
     let _ = excel_row;
+    apply_column_widths(worksheet, &col_widths)?;
     worksheet.set_freeze_panes(1, 0)?;
-    worksheet.set_column_width(0, 42)?;
-    for column in 1..=NUMERIC_HEADERS.len() as u16 {
-        worksheet.set_column_width(column, 12)?;
-    }
-    worksheet.set_column_width(status_column, 11)?;
     Ok(())
 }
 
@@ -211,23 +256,21 @@ fn write_data_row(
     worksheet: &mut Worksheet,
     excel_row: u32,
     row: &MeasurementRow,
+    text_format: &Format,
     number_format: &Format,
-    status: Option<(&str, &Format)>,
-    status_column: u16,
+    col_widths: &mut [f64],
 ) -> AppResult<()> {
-    worksheet.write_string(excel_row, 0, &row.timestamp)?;
+    note_width(col_widths, 0, &row.timestamp);
+    worksheet.write_string_with_format(excel_row, 0, &row.timestamp, text_format)?;
     for (column_index, value) in row.values.iter().enumerate() {
+        let column = (column_index + 1) as u16;
         if let Some(value) = value {
-            worksheet.write_number_with_format(
-                excel_row,
-                (column_index + 1) as u16,
-                *value,
-                number_format,
-            )?;
+            note_width(col_widths, column as usize, &format!("{value:.3}"));
+            worksheet.write_number_with_format(excel_row, column, *value, number_format)?;
+        } else {
+            // Keep fill consistent across empty numeric cells in the row.
+            worksheet.write_string_with_format(excel_row, column, "", text_format)?;
         }
-    }
-    if let Some((label, format)) = status {
-        worksheet.write_string_with_format(excel_row, status_column, label, format)?;
     }
     Ok(())
 }
@@ -237,10 +280,11 @@ fn write_comparison_sheet(
     worksheet: &mut Worksheet,
     report: &MeterReportData,
     header_format: &Format,
-    number_format: &Format,
+    auto_text: &Format,
+    auto_number: &Format,
+    meter_text: &Format,
+    meter_number: &Format,
     section_format: &Format,
-    auto_format: &Format,
-    meter_format: &Format,
     na_format: &Format,
     error_formats: [&Format; 3],
 ) -> AppResult<()> {
@@ -249,6 +293,10 @@ fn write_comparison_sheet(
     for (index, header) in NUMERIC_HEADERS.iter().enumerate() {
         worksheet.write_string_with_format(0, (index + 1) as u16, *header, header_format)?;
     }
+
+    let mut col_widths: Vec<f64> = std::iter::once(10.0_f64)
+        .chain(NUMERIC_HEADERS.iter().map(|h| h.len() as f64))
+        .collect();
 
     let mut excel_row = 2;
     let last_column = NUMERIC_HEADERS.len() as u16;
@@ -261,6 +309,7 @@ fn write_comparison_sheet(
             comparison.meter_used_count,
             comparison.auto_used_count
         );
+        note_width(&mut col_widths, 0, "Source");
         worksheet.merge_range(excel_row, 0, excel_row, last_column, &label, section_format)?;
         excel_row += 1;
 
@@ -269,10 +318,11 @@ fn write_comparison_sheet(
             excel_row,
             "WM AUTO",
             &comparison.auto_average,
-            number_format,
-            auto_format,
+            auto_text,
+            auto_number,
             None,
             na_format,
+            &mut col_widths,
         )?;
         excel_row += 1;
         write_comparison_values(
@@ -280,10 +330,11 @@ fn write_comparison_sheet(
             excel_row,
             "METER",
             &comparison.meter_average,
-            number_format,
-            meter_format,
+            meter_text,
+            meter_number,
             None,
             na_format,
+            &mut col_widths,
         )?;
         excel_row += 1;
         write_comparison_values(
@@ -291,19 +342,17 @@ fn write_comparison_sheet(
             excel_row,
             "Error %",
             &comparison.error_percent,
-            number_format,
+            na_format,
             na_format,
             Some(error_formats),
             na_format,
+            &mut col_widths,
         )?;
         excel_row += 2;
     }
 
+    apply_column_widths(worksheet, &col_widths)?;
     worksheet.set_freeze_panes(1, 1)?;
-    worksheet.set_column_width(0, 15)?;
-    for column in 1..=last_column {
-        worksheet.set_column_width(column, 12)?;
-    }
     Ok(())
 }
 
@@ -313,16 +362,19 @@ fn write_comparison_values(
     row: u32,
     source: &str,
     values: &[Option<f64>],
+    text_format: &Format,
     number_format: &Format,
-    row_format: &Format,
     error_formats: Option<[&Format; 3]>,
     na_format: &Format,
+    col_widths: &mut [f64],
 ) -> AppResult<()> {
-    worksheet.write_string_with_format(row, 0, source, row_format)?;
+    note_width(col_widths, 0, source);
+    worksheet.write_string_with_format(row, 0, source, text_format)?;
     for (index, value) in values.iter().enumerate() {
         let column = index as u16 + 1;
         match value {
             Some(value) => {
+                note_width(col_widths, column as usize, &format!("{value:.3}"));
                 let format = if let Some(formats) = error_formats {
                     let absolute = value.abs();
                     if absolute < 0.25 {
@@ -338,9 +390,25 @@ fn write_comparison_values(
                 worksheet.write_number_with_format(row, column, *value, format)?;
             }
             None => {
+                note_width(col_widths, column as usize, "N/A");
                 worksheet.write_string_with_format(row, column, "N/A", na_format)?;
             }
         }
+    }
+    Ok(())
+}
+
+fn note_width(col_widths: &mut [f64], column: usize, text: &str) {
+    if let Some(slot) = col_widths.get_mut(column) {
+        *slot = (*slot).max(text.chars().count() as f64);
+    }
+}
+
+fn apply_column_widths(worksheet: &mut Worksheet, col_widths: &[f64]) -> AppResult<()> {
+    for (index, width) in col_widths.iter().enumerate() {
+        // Padding + cap so columns stay compact but readable (Python: min(len+2, 60)).
+        let padded = (*width + 2.0).clamp(8.0, 36.0);
+        worksheet.set_column_width(index as u16, padded)?;
     }
     Ok(())
 }
