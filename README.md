@@ -85,19 +85,19 @@ Small representative CSV/setup fixtures live under `fixtures/`; large lab dumps 
 
 ## Build an installer
 
-Normal release build:
+Signed release build (requires release signing secrets):
 
 ```powershell
 bun run build:desktop
 ```
 
-Local unsigned two-phase fallback:
+Local unsigned two-phase build:
 
 ```powershell
 bun run build:desktop:unsigned
 ```
 
-The NSIS artifact is written under `backend\target\release\bundle\nsis\` and is ignored by Git. The installer uses `currentUser` mode.
+The unsigned helper builds without signing, then bundles NSIS with up to three attempts. Each Tauri process has a deadline and its process tree is terminated before retrying, so a stalled host tool cannot hang the build indefinitely. The NSIS artifact is written under `backend\target\release\bundle\nsis\` and is ignored by Git. The installer uses `currentUser` mode.
 
 The updater endpoint is configured as:
 
@@ -105,7 +105,7 @@ The updater endpoint is configured as:
 https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json
 ```
 
-**pubkey/signing pending first release:** confirm or replace the updater public key with the production keypair, keep `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only in secure release secrets, then publish the signed installer, signature, and `latest.json`. Never commit private keys, installers, or `.sig` files.
+**pubkey/signing pending first release:** `bun run build:desktop` reaches updater signing and requires `TAURI_SIGNING_PRIVATE_KEY` plus `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`. Confirm or replace the updater public key with the production keypair, keep both values only in secure release secrets, then publish the signed installer, signature, and `latest.json`. Until then, use `bun run build:desktop:unsigned` for a local installable smoke artifact. Never commit private keys, installers, or `.sig` files.
 
 ## Documentation
 

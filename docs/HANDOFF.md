@@ -6,7 +6,7 @@
 - Repository path: `C:\Projects\Active\RnD Data Processing`
 - Git remote: `https://github.com/Hassaan-ECE/RnD-Data-Processing.git`
 - Delivery branch: `main`
-- Validated application commit: `2d6eccc`
+- Validated application commit: `3706d3b`
 - Push destination: `origin/main`
 - Delivery branch includes the validated application commit above.
 - Implementation is complete for the System 208V v0.1 path.
@@ -120,13 +120,13 @@ The required sample setup, data folder, and gold workbook were present. The ship
 Run 1:
 
 - Exit code: `0`
-- Duration reported by pipeline: `735 ms`
+- Duration reported by pipeline: `927 ms`
 - Reports: 2 success, 0 failure, 13 targets, no warnings.
 
 Run 2:
 
 - Exit code: `0`
-- Duration reported by pipeline: `1493 ms`
+- Duration reported by pipeline: `1661 ms`
 - Reports: 2 success, 0 failure, 13 targets, no warnings.
 
 Generated files:
@@ -153,15 +153,15 @@ Startup logs and the live Hub screenshot were captured during verification; dura
 
 ## Installer and updater
 
-Normal release command:
+Signed release command:
 
 ```powershell
 bun run build:desktop
 ```
 
-In this Windows session the normal command compiled `backend\target\release\rnd-data-processing.exe` successfully, then NSIS failed twice with OS error 1224 (`user-mapped section open`). Clearing processes and the partial bundle did not remove the transient host lock.
+The final replay used the repository-local Tauri CLI, compiled `backend\target\release\rnd-data-processing.exe`, and produced the NSIS installer. Tauri then returned exit code `1` because the configured updater public key requires `TAURI_SIGNING_PRIVATE_KEY`, which is intentionally absent until the first signed release.
 
-The documented two-phase unsigned fallback succeeded:
+The documented two-phase unsigned build succeeded:
 
 ```powershell
 bun run build:desktop:unsigned
@@ -174,19 +174,18 @@ C:\Projects\Active\RnD Data Processing\backend\target\release\bundle\nsis\RnD Da
 Size observed in the final local-CLI replay: approximately 4.32 MB; exact bytes vary with build metadata
 ```
 
-The tested `bun run build:desktop:unsigned` helper completed with exit code `0` and produced the installer. The final command trace used `$ tauri build` and `$ tauri bundle` from the repository-local CLI and contained no `$ cargo tauri` invocation. The bounded retry remains in place for transient OS error 1224.
+The tested `bun run build:desktop:unsigned` helper completed with exit code `0` and produced the installer on its first bundle attempt. The final command trace used the repository-local `$ tauri build` and `$ tauri bundle` entry points and contained no `$ cargo tauri` invocation. The helper enforces a 600-second build deadline, a 180-second deadline per bundle attempt, process-tree cleanup, and at most three bundle attempts.
 
-The fallback intentionally skipped signing and emitted no `.sig`. Tauri also warned that `__TAURI_BUNDLE_TYPE` was not found while rebundling the cached binary, so this local installer validates NSIS creation but is not the production updater artifact. The exact helper output was captured during verification; the durable result is summarized above.
+The unsigned build intentionally skipped signing and emitted no `.sig`. It validates NSIS creation but is not the production updater artifact. An earlier pre-fix replay exposed that a stalled `rustc -vV` subprocess could outlive the retry counter; commit `3706d3b` added per-command timeouts and process-tree termination, and the corrected full replay passed. The exact helper output was captured during verification; the durable result is summarized above.
 
-**pubkey/signing pending first release:** confirm or replace the configured public key with the production keypair, store `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only in release secrets, resolve the combined-build Windows lock/Tauri bundle-type warning, then run `bun run build:desktop` and publish the signed installer, signature, and `latest.json` at the configured GitHub Release endpoint.
+**pubkey/signing pending first release:** confirm or replace the configured public key with the production keypair, store `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only in release secrets, then run `bun run build:desktop` and publish the signed installer, signature, and `latest.json` at the configured GitHub Release endpoint.
 
 ## Known issues and next fixes
 
 1. Production updater signing is not complete; no private key or signature is stored in the repository.
-2. The normal combined NSIS build encountered Windows error 1224 in this host session; the unsigned two-phase fallback produced the installer.
-3. The fallback bundle warned about missing `__TAURI_BUNDLE_TYPE`; resolve before treating an installer as updater-ready.
-4. OS-level automation did not click through the native file dialogs. The live window/process checks plus the React integration test cover the shipped navigation and actions.
-5. Only System 208V is production-enabled in v0.1.
+2. `bun run build:desktop` intentionally cannot complete updater signing until the release secrets are supplied; use the unsigned command only for local installation smoke tests.
+3. OS-level automation did not click through the native file dialogs. The live window/process checks plus the React integration test cover the shipped navigation and actions.
+4. Only System 208V is production-enabled in v0.1.
 
 ## Release artifact safety
 
