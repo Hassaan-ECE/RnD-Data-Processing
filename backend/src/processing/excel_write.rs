@@ -5,8 +5,8 @@ use std::path::Path;
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet};
 
 use crate::error::AppResult;
-use crate::processing::compare::MeterReportData;
-use crate::processing::preprocess::{MeasurementTable, NUMERIC_HEADERS};
+use crate::processing::compare::{average_rows, MeterReportData};
+use crate::processing::preprocess::{MeasurementRow, MeasurementTable, NUMERIC_HEADERS};
 use crate::processing::segment::BandRows;
 
 pub fn write_report_workbook(
@@ -26,6 +26,13 @@ pub fn write_report_workbook(
     let number_format = Format::new().set_num_format("0.000");
     let used_format = Format::new().set_background_color(Color::RGB(0xE2F0D9));
     let skipped_format = Format::new().set_background_color(Color::RGB(0xFCE4D6));
+    let average_format = Format::new()
+        .set_bold()
+        .set_background_color(Color::RGB(0xFFFF00));
+    let average_number_format = Format::new()
+        .set_bold()
+        .set_num_format("0.000")
+        .set_background_color(Color::RGB(0xFFFF00));
     let section_format = Format::new()
         .set_bold()
         .set_background_color(Color::RGB(0xE7E6E6));
@@ -56,6 +63,8 @@ pub fn write_report_workbook(
             &number_format,
             &used_format,
             &skipped_format,
+            &average_format,
+            &average_number_format,
         )?;
     }
     {
@@ -69,6 +78,8 @@ pub fn write_report_workbook(
             &number_format,
             &used_format,
             &skipped_format,
+            &average_format,
+            &average_number_format,
         )?;
     }
     {
@@ -99,49 +110,125 @@ fn write_detail_sheet(
     number_format: &Format,
     used_format: &Format,
     skipped_format: &Format,
+    average_format: &Format,
+    average_number_format: &Format,
 ) -> AppResult<()> {
     worksheet.set_name(name)?;
     worksheet.write_string_with_format(0, 0, "Time", header_format)?;
     for (index, header) in NUMERIC_HEADERS.iter().enumerate() {
         worksheet.write_string_with_format(0, (index + 1) as u16, *header, header_format)?;
     }
-    let band_column = (NUMERIC_HEADERS.len() + 1) as u16;
-    let status_column = band_column + 1;
-    worksheet.write_string_with_format(0, band_column, "Load Point", header_format)?;
+    let status_column = (NUMERIC_HEADERS.len() + 1) as u16;
     worksheet.write_string_with_format(0, status_column, "Status", header_format)?;
 
-    let metadata = row_metadata(bands);
-    for (row_index, row) in table.rows.iter().enumerate() {
-        let excel_row = row_index as u32 + 1;
-        worksheet.write_string(excel_row, 0, &row.timestamp)?;
-        for (column_index, value) in row.values.iter().enumerate() {
+    // Python-style sectioning: rows for each load band, then blank + yellow average + blank.
+    let mut excel_row = 1_u32;
+    let mut written = HashMap::<usize, ()>::new();
+    for band in bands {
+        let mut indices = band.all_indices.clone();
+        indices.sort_unstable();
+        let used: HashMap<usize, ()> = band.used_indices.iter().map(|i| (*i, ())).collect();
+
+        for index in &indices {
+            let Some(row) = table.rows.get(*index) else {
+                continue;
+            };
+            write_data_row(
+                worksheet,
+                excel_row,
+                row,
+                number_format,
+                Some(if used.contains_key(index) {
+                    ("USED", used_format)
+                } else {
+                    ("SKIPPED", skipped_format)
+                }),
+                status_column,
+            )?;
+            written.insert(*index, ());
+            excel_row += 1;
+        }
+
+        // Blank separator (like Python)
+        excel_row += 1;
+
+        let averages = average_rows(table, &band.used_indices)?;
+        let label = format!(
+            "Averaged Data - {}A ({}%, Trimmed: Used {} pts)",
+            display_number(band.target.target_amps),
+            display_number(band.target.load_percent),
+            band.used_indices.len()
+        );
+        worksheet.write_string_with_format(excel_row, 0, &label, average_format)?;
+        for (column_index, value) in averages.iter().enumerate() {
+            let column = (column_index + 1) as u16;
             if let Some(value) = value {
                 worksheet.write_number_with_format(
                     excel_row,
-                    (column_index + 1) as u16,
+                    column,
                     *value,
-                    number_format,
+                    average_number_format,
                 )?;
+            } else {
+                worksheet.write_string_with_format(excel_row, column, "N/A", average_format)?;
             }
         }
-        if let Some((label, used)) = metadata.get(&row_index) {
-            worksheet.write_string(excel_row, band_column, label)?;
-            let (status, format) = if *used {
-                ("Used", used_format)
-            } else {
-                ("Skipped", skipped_format)
-            };
-            worksheet.write_string_with_format(excel_row, status_column, status, format)?;
+        worksheet.write_string_with_format(excel_row, status_column, "AVERAGE", average_format)?;
+        excel_row += 1;
+
+        // Blank after average
+        excel_row += 1;
+    }
+
+    // Any leftover rows not assigned to a load point (out of tolerance / unmatched).
+    let mut leftovers = table
+        .rows
+        .iter()
+        .enumerate()
+        .filter(|(index, _)| !written.contains_key(index))
+        .map(|(index, _)| index)
+        .collect::<Vec<_>>();
+    if !leftovers.is_empty() {
+        leftovers.sort_unstable();
+        for index in leftovers {
+            let row = &table.rows[index];
+            write_data_row(worksheet, excel_row, row, number_format, None, status_column)?;
+            excel_row += 1;
         }
     }
 
+    let _ = excel_row;
     worksheet.set_freeze_panes(1, 0)?;
-    worksheet.set_column_width(0, 23)?;
+    worksheet.set_column_width(0, 42)?;
     for column in 1..=NUMERIC_HEADERS.len() as u16 {
         worksheet.set_column_width(column, 12)?;
     }
-    worksheet.set_column_width(band_column, 21)?;
     worksheet.set_column_width(status_column, 11)?;
+    Ok(())
+}
+
+fn write_data_row(
+    worksheet: &mut Worksheet,
+    excel_row: u32,
+    row: &MeasurementRow,
+    number_format: &Format,
+    status: Option<(&str, &Format)>,
+    status_column: u16,
+) -> AppResult<()> {
+    worksheet.write_string(excel_row, 0, &row.timestamp)?;
+    for (column_index, value) in row.values.iter().enumerate() {
+        if let Some(value) = value {
+            worksheet.write_number_with_format(
+                excel_row,
+                (column_index + 1) as u16,
+                *value,
+                number_format,
+            )?;
+        }
+    }
+    if let Some((label, format)) = status {
+        worksheet.write_string_with_format(excel_row, status_column, label, format)?;
+    }
     Ok(())
 }
 
@@ -256,24 +343,6 @@ fn write_comparison_values(
         }
     }
     Ok(())
-}
-
-fn row_metadata(bands: &[BandRows]) -> HashMap<usize, (String, bool)> {
-    let mut metadata = HashMap::new();
-    for band in bands {
-        let label = format!(
-            "{}% / {} A",
-            display_number(band.target.load_percent),
-            display_number(band.target.target_amps)
-        );
-        for index in &band.all_indices {
-            metadata.insert(*index, (label.clone(), false));
-        }
-        for index in &band.used_indices {
-            metadata.insert(*index, (label.clone(), true));
-        }
-    }
-    metadata
 }
 
 fn display_number(value: f64) -> String {

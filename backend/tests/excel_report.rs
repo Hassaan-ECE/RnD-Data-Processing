@@ -85,4 +85,20 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
     assert!(strings.iter().any(|value| value == "METER"));
     assert!(strings.iter().any(|value| value == "Error %"));
     assert!(strings.iter().any(|value| value == "N/A"));
+
+    let meter_detail = workbook
+        .worksheet_range("Meter Detail")
+        .expect("Meter Detail should be readable");
+    let meter_strings = meter_detail
+        .cells()
+        .filter_map(|(_, _, cell)| cell.as_string())
+        .collect::<Vec<_>>();
+    assert!(
+        meter_strings
+            .iter()
+            .any(|value| value.starts_with("Averaged Data - ") && value.contains("A (")),
+        "Meter Detail should insert yellow-style average section rows per load band"
+    );
+    assert!(meter_strings.iter().any(|value| value == "AVERAGE"));
+    assert!(meter_strings.iter().any(|value| value == "USED"));
 }
