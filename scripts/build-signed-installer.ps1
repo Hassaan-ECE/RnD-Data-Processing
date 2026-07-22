@@ -1,6 +1,9 @@
 # Signed desktop build for Data Processing (RnD).
 # Private key: %USERPROFILE%\.tauri\rnd-data-processing-updater.key
 # Never commit keys, passwords, installers, or .sig files.
+#
+# Flow: build NSIS without updater-sign step, then sign only the exact current-version
+# installer from tauri.conf.json. Never signs a stale previous-version artifact.
 $ErrorActionPreference = "Stop"
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
@@ -17,20 +20,19 @@ $installerName = "{0}_{1}_x64-setup.exe" -f $tauriConfig.productName, $tauriConf
 $installerPath = Join-Path $bundleDir $installerName
 $signaturePath = "$installerPath.sig"
 
-# Prefer key *contents* (path alone is flaky under bun/tauri on Windows).
-# Empty password string is required so signer does not hang waiting on stdin.
-$env:TAURI_SIGNING_PRIVATE_KEY = (Get-Content -LiteralPath $keyPath -Raw).Trim()
-$env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
-Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
-
 try {
     Remove-Item -LiteralPath $installerPath -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $signaturePath -Force -ErrorAction SilentlyContinue
 
+    # Clear signing env during build so createUpdaterArtifacts does not mis-decode the key.
+    Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+    Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PATH -ErrorAction SilentlyContinue
+    Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY_PASSWORD -ErrorAction SilentlyContinue
+
     Push-Location $repositoryRoot
     try {
-        Write-Host "Building NSIS installer..."
-        bun run build:desktop
+        Write-Host "Building NSIS installer (no-sign; exact version $installerName)..."
+        bun run tauri build --features desktop --config backend/tauri.conf.json --bundles nsis --no-sign
         $exitCode = $LASTEXITCODE
     }
     finally {
@@ -38,25 +40,29 @@ try {
     }
 
     if ($exitCode -ne 0) {
-        throw "build:desktop exited $exitCode; refusing to sign any existing installer"
+        throw "build:desktop (no-sign) exited $exitCode; refusing to sign any existing installer"
     }
     if (-not (Test-Path -LiteralPath $installerPath -PathType Leaf)) {
         throw "Expected current-version NSIS installer was not produced: $installerPath"
     }
 
-    if (-not (Test-Path -LiteralPath $signaturePath -PathType Leaf)) {
-        Write-Host "Signing: $installerPath"
-        Push-Location $repositoryRoot
-        try {
-            bun tauri signer sign $installerPath
-            if ($LASTEXITCODE -ne 0) {
-                throw "tauri signer exited $LASTEXITCODE"
-            }
-        }
-        finally {
-            Pop-Location
+    # Path + empty password avoids hang; key contents decode can fail under some shells.
+    $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $keyPath
+    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
+    Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
+
+    Write-Host "Signing: $installerPath"
+    Push-Location $repositoryRoot
+    try {
+        bun tauri signer sign $installerPath
+        if ($LASTEXITCODE -ne 0) {
+            throw "tauri signer exited $LASTEXITCODE"
         }
     }
+    finally {
+        Pop-Location
+    }
+
     if (-not (Test-Path -LiteralPath $signaturePath -PathType Leaf)) {
         throw "Expected updater signature was not produced: $signaturePath"
     }

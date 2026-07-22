@@ -114,8 +114,9 @@ The production updater public key is configured. GitHub Releases carry the signe
 
 ## Documentation
 
-- `docs/System_208V_Column_Mapping_and_Math.docx` — **R&D review preferred:** column map + plain-text equations (always readable).
-- `docs/COLUMN_MAPPING.md` — same content for repo/git; math may not render in all Markdown viewers.
+- `docs/System_208V_Column_Mapping_and_Math.docx` — full column map + plain-text equations (Word/Teams/email).
+- `docs/System_208V_Math_Formulas.html` — **typeset equations** (KaTeX); open in a browser for R&D math review / print-to-PDF.
+- `docs/COLUMN_MAPPING.md` — same mapping content for repo/git; LaTeX math only renders in some Markdown viewers.
 - `docs/HANDOFF.md` — implementation status, decisions, smoke evidence, and release notes.
 - `docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md` — product design.
 - `docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md` — implementation plan.

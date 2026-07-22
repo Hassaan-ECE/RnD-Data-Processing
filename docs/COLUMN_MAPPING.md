@@ -1,12 +1,16 @@
 # System 208V column mapping & math (R&D review)
 
-> **Preferred for R&D review:** open the Word document instead of this Markdown file:
-> **`docs/System_208V_Column_Mapping_and_Math.docx`**
+> **Formats for review:**
 >
-> Why: Markdown `$...$` / LaTeX math only renders in some viewers (GitHub, some IDEs). In Notepad, many VS Code setups, Teams, and Outlook it shows as raw markup. The Word file uses **plain-text equations** that always display.
+> | File | Use when |
+> |------|----------|
+> | **`docs/System_208V_Math_Formulas.html`** | Nice **typeset** equations (open in browser; KaTeX) |
+> | **`docs/System_208V_Column_Mapping_and_Math.docx`** | Full maps in Word/Teams/email (plain-text formulas) |
+> | This Markdown | Git history |
 >
-> Rebuild the Word file after content changes:
-> `node docs/build-column-mapping-docx.mjs`
+> Why not “LaTeX inside Word”? Word does not run LaTeX; true Word equation objects need Pandoc/OMML. HTML+KaTeX is the practical path for publication-quality math.
+>
+> Rebuild the Word file after mapping changes: `node docs/build-column-mapping-docx.mjs`
 
 **Purpose:** Explain exactly how report values are produced so R&D can verify channel mapping, units, and formulas.
 

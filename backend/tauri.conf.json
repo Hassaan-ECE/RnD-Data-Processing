@@ -41,7 +41,7 @@
   },
   "plugins": {
     "updater": {
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZFOEEwOEFGNkM4MTI2Q0IKUldUTEpvRnNyd2lLL3RBaThqV0dOa1dUa0NEMDBZZ1l4bnVyMGZpK2xUMk82UExGMkVGYTZ3MnMK",
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDYwMTM2RTc0MTdCRkIyNzMKUldSenNyOFhkRzRUWUJLU2J2cmdCZ1Rvd1B3bWpCVWc5dGZURGxiR3lqam1jQ2VnckdQRmtmMW4K",
       "endpoints": [
         "https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json"
       ],
