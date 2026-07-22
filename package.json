@@ -15,6 +15,7 @@
     "desktop": "cargo tauri dev --features desktop --config backend/tauri.conf.json",
     "dev:desktop": "cargo tauri dev --features desktop --config backend/tauri.conf.json",
     "build:desktop": "cargo tauri build --features desktop --config backend/tauri.conf.json --bundles nsis",
+    "build:desktop:unsigned": "powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-unsigned-installer.ps1",
     "test": "bun --bun vitest run --config frontend/vite.config.ts",
     "test:frontend": "bun --bun vitest run --config frontend/vite.config.ts",
     "check:versions": "node scripts/check-version-consistency.mjs",

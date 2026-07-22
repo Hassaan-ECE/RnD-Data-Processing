@@ -1,29 +1,114 @@
 # RnD Data Processing
 
-Windows desktop app for R&D lab **accuracy data processing**: compare on-system Acuvim meters against calibrated Yokogawa (Auto) data and produce Excel accuracy reports.
+Shippable Windows desktop v0.1 for offline System 208V accuracy processing. The app compares Acuvim Real-Time meter captures with one calibrated Yokogawa Auto CSV and writes one Excel report per detected meter.
 
-**Repository:** https://github.com/Hassaan-ECE/RnD-Data-Processing  
+Repository: https://github.com/Hassaan-ECE/RnD-Data-Processing
 
-## Development
+## Included in v0.1
+
+- One Tauri OS window with an in-app Hub and System 208V processor page.
+- Setup workbook, data folder, tolerance, and default/custom output selection.
+- Exact mappings: IIR / Meter 10 → Auto 4/5/6 + SIGMB; IIW / Meter 9 → Auto 1/2/3 + SIGMA.
+- RAM-only offline CSV preprocessing; no database, persistence layer, watcher, or realtime service.
+- Parallel Auto transforms and per-meter report processing where independent.
+- One workbook per meter with exactly `Meter Detail`, `WM Detail`, and `Comparison` sheets.
+- Open report(s), open output folder, current-user NSIS configuration, and updater UI/configuration.
+
+## Prerequisites
+
+- Windows 10 or 11 with WebView2.
+- Bun 1.3 or newer.
+- Rust stable with the MSVC Windows toolchain.
+- Visual Studio C++ build tools for Tauri development and packaging.
+
+## Run the desktop app
 
 ```powershell
 cd "C:\Projects\Active\RnD Data Processing"
 bun install
-bun run dev:frontend
+bun run desktop
 ```
 
-The desktop entry point will be `bun run desktop` once the Tauri backend is initialized.
+`bun run desktop` starts Vite, compiles the Rust/Tauri backend with its `desktop` feature, and opens one `RnD Data Processing` window.
 
-## Docs
+## Generate a System 208V report
 
-- [Design spec](docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md)
-- [Implementation plan](docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md) — task list for implementor agents
-- [Requirements notes](docs/REQUIREMENTS_NOTES.md) (discussion log)
+1. On the Hub, choose the setup `.xlsx` workbook.
+2. Open the enabled `System 208V` card.
+3. Choose the folder containing the Acuvim Real-Time CSVs and exactly one Auto CSV.
+4. Leave tolerance at the default `5%` or enter another value greater than 0 and no more than 100.
+5. Keep the default output or choose a custom folder.
+6. Select `Generate reports`, then use `Open report(s)` or `Open output folder`.
 
-## Planned stack
+Sample paths used for v0.1 validation:
 
-Tauri 2 · React · TypeScript · Vite · Tailwind · Bun · Rust · NSIS installer · GitHub signed updater
+```text
+Setup: C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\PDU500-Load_ for testing.xlsx
+Data:  C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026
+Output:C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026\System_208V_Accuracy_Reports
+```
 
-## Sample data (external)
+The setup parser prefers `Sheet1` column A/B rows 4–16 and can fall back to a sheet containing a `System_208` header. The default output is `<data_folder>\System_208V_Accuracy_Reports\`.
 
-System 208V raw CSVs and setup schedule currently live under the Accuracy Report Generator `Data` folder (not required in-repo for docs-only stage).
+## Run the pipeline without the UI
+
+```powershell
+cd "C:\Projects\Active\RnD Data Processing"
+bun run pipeline -- --setup "C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\PDU500-Load_ for testing.xlsx" --data "C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026" --tolerance 5
+```
+
+Add `--output "C:\Path\To\Reports"` for a custom output directory.
+
+## Processing rules
+
+- Auto data is read once, kept in memory, and transformed into configured channel groups.
+- Load rows are assigned to the nearest setup target inside the selected ± tolerance.
+- Acuvim rows are matched to Auto band timestamps within the configured 60-second window.
+- Bands with 5–9 samples trim one point from each edge; bands with 10+ samples trim 10% from each edge when at least three rows remain. Smaller bands remain intact.
+- Error % is `(meter - auto) / auto * 100`. Near-zero Auto denominators are written as `N/A`, never a fabricated zero.
+- Missing Auto files, missing meters, malformed numbers, incomplete setup schedules, empty bands, and invalid output paths return explicit errors.
+
+## Validate the project
+
+```powershell
+cd "C:\Projects\Active\RnD Data Processing"
+bun run check:versions
+bun run test:frontend
+bun run build:frontend
+cargo fmt --manifest-path backend/Cargo.toml --check
+cargo test --manifest-path backend/Cargo.toml
+cargo check --manifest-path backend/Cargo.toml --features desktop
+```
+
+Small representative CSV/setup fixtures live under `fixtures/`; large lab dumps stay external.
+
+## Build an installer
+
+Normal release build:
+
+```powershell
+bun run build:desktop
+```
+
+Local unsigned two-phase fallback:
+
+```powershell
+bun run build:desktop:unsigned
+```
+
+The NSIS artifact is written under `backend\target\release\bundle\nsis\` and is ignored by Git. The installer uses `currentUser` mode.
+
+The updater endpoint is configured as:
+
+```text
+https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json
+```
+
+**pubkey/signing pending first release:** confirm or replace the updater public key with the production keypair, keep `TAURI_SIGNING_PRIVATE_KEY` and `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` only in secure release secrets, then publish the signed installer, signature, and `latest.json`. Never commit private keys, installers, or `.sig` files.
+
+## Documentation
+
+- `docs/HANDOFF.md` — implementation status, decisions, smoke evidence, and release notes.
+- `docs/superpowers/specs/2026-07-21-rnd-data-processing-design.md` — product design.
+- `docs/superpowers/plans/2026-07-21-rnd-data-processing-implementation.md` — implementation plan.
+- `docs/REQUIREMENTS_NOTES.md` — requirements discussion notes.

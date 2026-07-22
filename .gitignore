@@ -18,11 +18,14 @@ Desktop.ini
 .env.*
 *.pem
 *.key
+*.p12
+*.pfx
 !.gitkeep
 
 # Release artifacts (never commit installers/signatures)
 **/*-setup.exe
-**/*.exe.sig
+**/*.msi
+**/*.sig
 **/latest.json
 **/SHA256SUMS.txt
 backend/target/release/bundle/
