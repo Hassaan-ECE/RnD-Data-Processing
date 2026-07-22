@@ -96,7 +96,7 @@ describe("RnD Data Processing UI", () => {
     expect(screen.getByRole("button", { name: /Open folder/i })).toBeDisabled();
 
     await act(async () => {
-      fireEvent.click(screen.getByRole("button", { name: "Browse data folder" }));
+      fireEvent.click(screen.getByRole("button", { name: "Browse" }));
     });
     expect(await screen.findByText("Auto_20260721093057.CSV")).toBeInTheDocument();
     expect(screen.getByText("IIR / Meter 10")).toBeInTheDocument();
