@@ -91,7 +91,7 @@ describe("RnD Data Processing UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "System 208V" }));
     expect(screen.getByRole("button", { name: "Back" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "System 208V" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Check for updates" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Check for updates" })).not.toBeInTheDocument();
     expect(screen.getByLabelText("Match tolerance (±%)")).toHaveValue(5);
     expect(screen.getByRole("button", { name: "Generate reports" })).toBeDisabled();
     expect(screen.getByRole("button", { name: /Open report\(s\)/i })).toBeDisabled();

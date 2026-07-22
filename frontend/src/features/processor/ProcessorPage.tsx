@@ -26,7 +26,6 @@ interface ProcessorPageProps {
   onSetupPathChange: (path: string) => void;
   onBack: () => void;
   announce: (message: string) => void;
-  updateControl: ReactNode;
 }
 
 export function ProcessorPage({
@@ -34,7 +33,6 @@ export function ProcessorPage({
   onSetupPathChange,
   onBack,
   announce,
-  updateControl,
 }: ProcessorPageProps) {
   const [setupSummary, setSetupSummary] = useState<SetupLoadResult | null>(null);
   const [dataFolder, setDataFolder] = useState("");
@@ -172,7 +170,7 @@ export function ProcessorPage({
           </button>
         </div>
         <h1>System 208V</h1>
-        <div className="heading-side heading-side-end">{updateControl}</div>
+        <div className="heading-side heading-side-end" aria-hidden="true" />
       </div>
 
       {!isTauriRuntime() ? (

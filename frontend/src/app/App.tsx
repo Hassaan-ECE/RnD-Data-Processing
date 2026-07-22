@@ -72,7 +72,6 @@ export function App() {
             onSetupPathChange={setSetupPath}
             onBack={() => setPage("hub")}
             announce={announce}
-            updateControl={updateControl}
           />
         )}
       </main>
