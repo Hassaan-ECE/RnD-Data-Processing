@@ -22,6 +22,7 @@ import {
   type PipelineResult,
   type SetupLoadResult,
 } from "../../integrations/tauri/backend";
+import { ScrollRegion } from "../../shared/ui/ScrollRegion";
 import { LoadRangeSidebar } from "./LoadRangeSidebar";
 
 interface ProcessorPageProps {
@@ -53,6 +54,37 @@ export function ProcessorPage({
   const [preview, setPreview] = useState<BandPreviewResult | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState("");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return window.localStorage.getItem("rnd-data-processing.sidebar-collapsed") === "1";
+    } catch {
+      return false;
+    }
+  });
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    try {
+      const raw = Number(window.localStorage.getItem("rnd-data-processing.sidebar-width"));
+      return Number.isFinite(raw) && raw >= 240 && raw <= 480 ? raw : 300;
+    } catch {
+      return 300;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("rnd-data-processing.sidebar-collapsed", sidebarCollapsed ? "1" : "0");
+    } catch {
+      // ignore
+    }
+  }, [sidebarCollapsed]);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("rnd-data-processing.sidebar-width", String(sidebarWidth));
+    } catch {
+      // ignore
+    }
+  }, [sidebarWidth]);
 
   const reduceOptions = useMemo(
     () => ({
@@ -229,7 +261,7 @@ export function ProcessorPage({
   };
 
   return (
-    <div className="page-stack processor-page">
+    <div className="processor-page">
       <div className="processor-heading">
         <div className="heading-side heading-side-start">
           <button className="back-button" type="button" onClick={onBack}>
@@ -245,7 +277,7 @@ export function ProcessorPage({
       ) : null}
 
       <div className="processor-layout">
-        <div className="processor-main">
+        <ScrollRegion className="processor-main-scroll" contentClassName="processor-main" aria-label="System 208V controls">
           <section className="panel" aria-labelledby="inputs-heading">
             <div className="section-heading">
               <h2 id="inputs-heading">Inputs</h2>
@@ -506,7 +538,7 @@ export function ProcessorPage({
               </div>
             </section>
           ) : null}
-        </div>
+        </ScrollRegion>
 
         <LoadRangeSidebar
           tolerance={tolerance}
@@ -515,6 +547,10 @@ export function ProcessorPage({
           error={previewError}
           hasSetup={Boolean(setupPath && setupSummary)}
           hasData={Boolean(dataFolder && discovery)}
+          collapsed={sidebarCollapsed}
+          width={sidebarWidth}
+          onToggleCollapsed={() => setSidebarCollapsed((current) => !current)}
+          onWidthChange={setSidebarWidth}
         />
       </div>
     </div>

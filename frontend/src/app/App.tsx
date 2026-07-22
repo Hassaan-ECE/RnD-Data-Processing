@@ -58,9 +58,9 @@ export function App() {
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
-      <main className="app-main">
-        <ScrollRegion className="app-scroll" aria-label="Application content">
-          {page === "hub" ? (
+      <main className={`app-main ${page === "system_208v" ? "app-main-fill" : ""}`}>
+        {page === "hub" ? (
+          <ScrollRegion className="app-scroll" aria-label="Application content">
             <HubPage
               setupPath={setupPath}
               onSetupPathChange={setSetupPath}
@@ -68,15 +68,16 @@ export function App() {
               announce={announce}
               updateControl={updateControl}
             />
-          ) : (
-            <ProcessorPage
-              setupPath={setupPath}
-              onSetupPathChange={setSetupPath}
-              onBack={() => setPage("hub")}
-              announce={announce}
-            />
-          )}
-        </ScrollRegion>
+          </ScrollRegion>
+        ) : (
+          // Processor owns two independent scroll panes (main + load-range rail).
+          <ProcessorPage
+            setupPath={setupPath}
+            onSetupPathChange={setSetupPath}
+            onBack={() => setPage("hub")}
+            announce={announce}
+          />
+        )}
       </main>
     </div>
   );
