@@ -3,18 +3,158 @@ use std::fs;
 use std::path::Path;
 
 use rust_xlsxwriter::{Color, Format, FormatAlign, FormatBorder, Workbook, Worksheet};
+use serde::{Deserialize, Serialize};
 
-use crate::error::AppResult;
+use crate::error::{AppError, AppResult};
 use crate::processing::compare::{
     average_rows, ComparisonMetricKind, MeterReportData, MetricReportSection,
 };
 use crate::processing::preprocess::{MeasurementRow, MeasurementTable};
 use crate::processing::segment::BandRows;
 
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct GradientStops {
+    pub green: f64,
+    pub yellow: f64,
+    pub red: f64,
+}
+
+impl GradientStops {
+    fn validate(self, label: &str) -> AppResult<()> {
+        if !self.green.is_finite() || !self.yellow.is_finite() || !self.red.is_finite() {
+            return Err(AppError::Message(format!(
+                "{label} gradient stops must be finite numbers"
+            )));
+        }
+        if self.green < 0.0 || self.green >= self.yellow || self.yellow >= self.red {
+            return Err(AppError::Message(format!(
+                "{label} gradient must satisfy 0 <= green < yellow < red; received {}, {}, {}",
+                self.green, self.yellow, self.red
+            )));
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug, Deserialize, Serialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct ComparisonGradientOptions {
+    pub line_neutral_voltage: GradientStops,
+    pub line_line_voltage: GradientStops,
+    pub current: GradientStops,
+    pub active_power: GradientStops,
+    pub reactive_power: GradientStops,
+    pub apparent_power: GradientStops,
+    pub power_factor: GradientStops,
+    pub frequency: GradientStops,
+    pub voltage_unbalance: GradientStops,
+    pub current_unbalance: GradientStops,
+    pub voltage_thd: GradientStops,
+    pub current_thd: GradientStops,
+    pub voltage_phase_angle: GradientStops,
+    pub current_phase_angle: GradientStops,
+}
+
+impl ComparisonGradientOptions {
+    pub fn validate(&self) -> AppResult<()> {
+        for (label, stops) in [
+            ("Line-neutral voltage", self.line_neutral_voltage),
+            ("Line-line voltage", self.line_line_voltage),
+            ("Current", self.current),
+            ("Active power", self.active_power),
+            ("Reactive power", self.reactive_power),
+            ("Apparent power", self.apparent_power),
+            ("Power factor", self.power_factor),
+            ("Frequency", self.frequency),
+            ("Voltage unbalance", self.voltage_unbalance),
+            ("Current unbalance", self.current_unbalance),
+            ("Voltage THD", self.voltage_thd),
+            ("Current THD", self.current_thd),
+            ("Voltage phase angle", self.voltage_phase_angle),
+            ("Current phase angle", self.current_phase_angle),
+        ] {
+            stops.validate(label)?;
+        }
+        Ok(())
+    }
+
+    fn stops_for(
+        &self,
+        header: &str,
+        metric_kind: ComparisonMetricKind,
+    ) -> AppResult<GradientStops> {
+        let stops = match metric_kind {
+            ComparisonMetricKind::ErrorPercent => match header {
+                "UA(V)" | "UB(V)" | "UC(V)" | "ULN(V)" => self.line_neutral_voltage,
+                "UAB(V)" | "UBC(V)" | "UCA(V)" | "ULL(V)" => self.line_line_voltage,
+                "IA(A)" | "IB(A)" | "IC(A)" | "I(A)" | "IN(A)" => self.current,
+                "PA(kW)" | "PB(kW)" | "PC(kW)" | "P(kW)" => self.active_power,
+                "QA(kvar)" | "QB(kvar)" | "QC(kvar)" | "Q(kvar)" => self.reactive_power,
+                "SA(kVA)" | "SB(kVA)" | "SC(kVA)" | "S(kVA)" => self.apparent_power,
+                "PFA" | "PFB" | "PFC" | "PF" => self.power_factor,
+                "FREQ(Hz)" => self.frequency,
+                "U_UNBL(%)" => self.voltage_unbalance,
+                "I_UNBL(%)" => self.current_unbalance,
+                "UA_THD(%)" | "UB_THD(%)" | "UC_THD(%)" | "U_THD(%)" => self.voltage_thd,
+                "IA_THD(%)" | "IB_THD(%)" | "IC_THD(%)" | "I_THD(%)" => self.current_thd,
+                _ => {
+                    return Err(AppError::Message(format!(
+                        "No Error % gradient group is configured for report column '{header}'"
+                    )))
+                }
+            },
+            ComparisonMetricKind::AngleDeltaDegrees => match header {
+                "UA(deg)" | "UB(deg)" | "UC(deg)" => self.voltage_phase_angle,
+                "IA_UA(deg)" | "IB_UA(deg)" | "IC_UA(deg)" => self.current_phase_angle,
+                _ => {
+                    return Err(AppError::Message(format!(
+                        "No phase-delta gradient group is configured for report column '{header}'"
+                    )))
+                }
+            },
+        };
+        Ok(stops)
+    }
+}
+
+impl Default for ComparisonGradientOptions {
+    fn default() -> Self {
+        const ERROR_PERCENT: GradientStops = GradientStops {
+            green: 0.0,
+            yellow: 0.5,
+            red: 1.0,
+        };
+        const ANGLE_DELTA: GradientStops = GradientStops {
+            green: 0.0,
+            yellow: 1.5,
+            red: 3.0,
+        };
+        Self {
+            line_neutral_voltage: ERROR_PERCENT,
+            line_line_voltage: ERROR_PERCENT,
+            current: ERROR_PERCENT,
+            active_power: ERROR_PERCENT,
+            reactive_power: ERROR_PERCENT,
+            apparent_power: ERROR_PERCENT,
+            power_factor: ERROR_PERCENT,
+            frequency: ERROR_PERCENT,
+            voltage_unbalance: ERROR_PERCENT,
+            current_unbalance: ERROR_PERCENT,
+            voltage_thd: ERROR_PERCENT,
+            current_thd: ERROR_PERCENT,
+            voltage_phase_angle: ANGLE_DELTA,
+            current_phase_angle: ANGLE_DELTA,
+        }
+    }
+}
+
 pub fn write_report_workbook(
     output_path: impl AsRef<Path>,
     report: &MeterReportData,
+    gradients: &ComparisonGradientOptions,
 ) -> AppResult<()> {
+    gradients.validate()?;
     let output_path = output_path.as_ref();
     if let Some(parent) = output_path.parent() {
         fs::create_dir_all(parent)?;
@@ -132,6 +272,7 @@ pub fn write_report_workbook(
             &report.comparisons,
             "Error %",
             ComparisonMetricKind::ErrorPercent,
+            gradients,
             &header_format,
             &auto_text,
             &auto_number,
@@ -145,6 +286,7 @@ pub fn write_report_workbook(
         write_metric_section_sheets(
             &mut workbook,
             thd,
+            gradients,
             "THD Meter Detail",
             "THD WM Detail",
             "THD Comparison",
@@ -170,6 +312,7 @@ pub fn write_report_workbook(
         write_metric_section_sheets(
             &mut workbook,
             phase,
+            gradients,
             "Phase Meter Detail",
             "Phase WM Detail",
             "Phase Comparison",
@@ -199,6 +342,7 @@ pub fn write_report_workbook(
 fn write_metric_section_sheets(
     workbook: &mut Workbook,
     section: &MetricReportSection,
+    gradients: &ComparisonGradientOptions,
     meter_sheet: &str,
     auto_sheet: &str,
     comparison_sheet: &str,
@@ -266,6 +410,7 @@ fn write_metric_section_sheets(
             &section.comparisons,
             section.error_row_label,
             section.metric_kind,
+            gradients,
             header_format,
             auto_text,
             auto_number,
@@ -453,6 +598,7 @@ fn write_comparison_sheet(
     comparisons: &[crate::processing::compare::ComparisonBlock],
     error_row_label: &str,
     metric_kind: ComparisonMetricKind,
+    gradients: &ComparisonGradientOptions,
     header_format: &Format,
     auto_text: &Format,
     auto_number: &Format,
@@ -461,6 +607,10 @@ fn write_comparison_sheet(
     section_format: &Format,
     na_format: &Format,
 ) -> AppResult<()> {
+    let gradient_stops = headers
+        .iter()
+        .map(|header| gradients.stops_for(header, metric_kind))
+        .collect::<AppResult<Vec<_>>>()?;
     worksheet.set_name(sheet_name)?;
     worksheet.write_string_with_format(0, 0, "Source", header_format)?;
     for (index, header) in headers.iter().enumerate() {
@@ -496,7 +646,7 @@ fn write_comparison_sheet(
             auto_number,
             false,
             na_format,
-            metric_kind,
+            &gradient_stops,
             &mut col_widths,
         )?;
         excel_row += 1;
@@ -509,7 +659,7 @@ fn write_comparison_sheet(
             meter_number,
             false,
             na_format,
-            metric_kind,
+            &gradient_stops,
             &mut col_widths,
         )?;
         excel_row += 1;
@@ -522,7 +672,7 @@ fn write_comparison_sheet(
             na_format,
             true,
             na_format,
-            metric_kind,
+            &gradient_stops,
             &mut col_widths,
         )?;
         excel_row += 2;
@@ -543,7 +693,7 @@ fn write_comparison_values(
     number_format: &Format,
     gradient_errors: bool,
     na_format: &Format,
-    metric_kind: ComparisonMetricKind,
+    gradient_stops: &[GradientStops],
     col_widths: &mut [f64],
 ) -> AppResult<()> {
     note_width(col_widths, 0, source);
@@ -554,7 +704,13 @@ fn write_comparison_values(
             Some(value) => {
                 note_width(col_widths, column as usize, &format!("{value:.3}"));
                 if gradient_errors {
-                    let fill = error_gradient_rgb(value.abs(), metric_kind);
+                    let stops = gradient_stops.get(index).copied().ok_or_else(|| {
+                        AppError::Message(format!(
+                            "Missing comparison gradient for value column {}",
+                            index + 1
+                        ))
+                    })?;
+                    let fill = error_gradient_rgb(value.abs(), stops);
                     let format = Format::new()
                         .set_align(FormatAlign::Center)
                         .set_num_format("0.000")
@@ -575,27 +731,20 @@ fn write_comparison_values(
 
 /// Excel-style 3-stop color scale on absolute magnitude: green → yellow → red.
 ///
-/// Error %: 0% green, 0.5% yellow, 1%+ solid red.
-/// Δdeg: 0° green, 1.5° yellow, 3°+ solid red.
-fn error_gradient_rgb(absolute: f64, metric_kind: ComparisonMetricKind) -> u32 {
+fn error_gradient_rgb(absolute: f64, stops: GradientStops) -> u32 {
     // Classic Excel conditional-format palette
     const GREEN: (u8, u8, u8) = (0x63, 0xBE, 0x7B);
     const YELLOW: (u8, u8, u8) = (0xFF, 0xEB, 0x84);
     const RED: (u8, u8, u8) = (0xF8, 0x69, 0x6B);
 
-    let (mid, high) = match metric_kind {
-        ComparisonMetricKind::ErrorPercent => (0.5, 1.0),
-        ComparisonMetricKind::AngleDeltaDegrees => (1.5, 3.0),
-    };
-
-    let t = if !absolute.is_finite() || absolute <= 0.0 {
+    let t = if !absolute.is_finite() || absolute <= stops.green {
         0.0
-    } else if absolute >= high {
+    } else if absolute >= stops.red {
         1.0
-    } else if absolute <= mid {
-        0.5 * (absolute / mid)
+    } else if absolute <= stops.yellow {
+        0.5 * ((absolute - stops.green) / (stops.yellow - stops.green))
     } else {
-        0.5 + 0.5 * ((absolute - mid) / (high - mid))
+        0.5 + 0.5 * ((absolute - stops.yellow) / (stops.red - stops.yellow))
     };
 
     let (r, g, b) = if t <= 0.5 {
@@ -674,15 +823,18 @@ fn comparison_average_label(
 
 #[cfg(test)]
 mod tests {
-    use super::error_gradient_rgb;
     use crate::processing::compare::ComparisonMetricKind;
+    use crate::processing::preprocess::{NUMERIC_HEADERS, PHASE_HEADERS, THD_HEADERS};
+
+    use super::{error_gradient_rgb, ComparisonGradientOptions, GradientStops};
 
     #[test]
     fn error_gradient_is_green_at_zero_and_red_at_high() {
-        let green = error_gradient_rgb(0.0, ComparisonMetricKind::ErrorPercent);
-        let mid = error_gradient_rgb(0.5, ComparisonMetricKind::ErrorPercent);
-        let red = error_gradient_rgb(1.0, ComparisonMetricKind::ErrorPercent);
-        let hotter = error_gradient_rgb(5.0, ComparisonMetricKind::ErrorPercent);
+        let stops = ComparisonGradientOptions::default().line_neutral_voltage;
+        let green = error_gradient_rgb(0.0, stops);
+        let mid = error_gradient_rgb(0.5, stops);
+        let red = error_gradient_rgb(1.0, stops);
+        let hotter = error_gradient_rgb(5.0, stops);
         // Green channel high at zero, red channel high at max
         assert!((green >> 8) & 0xFF > (green >> 16) & 0xFF);
         assert_eq!(red, hotter);
@@ -692,12 +844,94 @@ mod tests {
 
     #[test]
     fn angle_gradient_uses_degree_scale() {
-        let mild = error_gradient_rgb(0.2, ComparisonMetricKind::AngleDeltaDegrees);
-        let bad = error_gradient_rgb(3.0, ComparisonMetricKind::AngleDeltaDegrees);
+        let stops = ComparisonGradientOptions::default().voltage_phase_angle;
+        let mild = error_gradient_rgb(0.2, stops);
+        let bad = error_gradient_rgb(3.0, stops);
         assert_ne!(mild, bad);
+        assert_eq!(bad, error_gradient_rgb(10.0, stops));
+    }
+
+    #[test]
+    fn custom_gradient_holds_green_until_the_green_stop() {
+        let stops = GradientStops {
+            green: 0.2,
+            yellow: 0.7,
+            red: 1.5,
+        };
         assert_eq!(
-            bad,
-            error_gradient_rgb(10.0, ComparisonMetricKind::AngleDeltaDegrees)
+            error_gradient_rgb(0.0, stops),
+            error_gradient_rgb(0.2, stops)
+        );
+        assert_ne!(
+            error_gradient_rgb(0.2, stops),
+            error_gradient_rgb(0.7, stops)
+        );
+    }
+
+    #[test]
+    fn gradient_validation_rejects_unsorted_stops() {
+        let mut options = ComparisonGradientOptions::default();
+        options.line_neutral_voltage.yellow = options.line_neutral_voltage.green;
+        assert!(options.validate().is_err());
+    }
+
+    #[test]
+    fn every_report_column_maps_to_a_gradient_group() {
+        let options = ComparisonGradientOptions::default();
+        for header in NUMERIC_HEADERS.iter().chain(THD_HEADERS.iter()) {
+            assert!(
+                options
+                    .stops_for(header, ComparisonMetricKind::ErrorPercent)
+                    .is_ok(),
+                "missing Error % gradient group for {header}"
+            );
+        }
+        for header in PHASE_HEADERS {
+            assert!(
+                options
+                    .stops_for(header, ComparisonMetricKind::AngleDeltaDegrees)
+                    .is_ok(),
+                "missing phase gradient group for {header}"
+            );
+        }
+    }
+
+    #[test]
+    fn current_and_unbalance_columns_use_the_confirmed_groups() {
+        let mut options = ComparisonGradientOptions::default();
+        options.current = GradientStops {
+            green: 1.0,
+            yellow: 2.0,
+            red: 3.0,
+        };
+        options.voltage_unbalance = GradientStops {
+            green: 4.0,
+            yellow: 5.0,
+            red: 6.0,
+        };
+        options.current_unbalance = GradientStops {
+            green: 7.0,
+            yellow: 8.0,
+            red: 9.0,
+        };
+
+        assert_eq!(
+            options
+                .stops_for("IN(A)", ComparisonMetricKind::ErrorPercent)
+                .expect("IN should map"),
+            options.current
+        );
+        assert_eq!(
+            options
+                .stops_for("U_UNBL(%)", ComparisonMetricKind::ErrorPercent)
+                .expect("voltage unbalance should map"),
+            options.voltage_unbalance
+        );
+        assert_eq!(
+            options
+                .stops_for("I_UNBL(%)", ComparisonMetricKind::ErrorPercent)
+                .expect("current unbalance should map"),
+            options.current_unbalance
         );
     }
 }

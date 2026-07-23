@@ -8,3 +8,4 @@ pub mod segment;
 pub mod setup;
 
 pub const SYSTEM_208V_TEST_ID: &str = "system_208v";
+pub const SYSTEM_415V_TEST_ID: &str = "system_415v";

@@ -46,15 +46,12 @@ try {
         throw "Expected current-version NSIS installer was not produced: $installerPath"
     }
 
-    # Path + empty password avoids hang; key contents decode can fail under some shells.
-    $env:TAURI_SIGNING_PRIVATE_KEY_PATH = $keyPath
-    $env:TAURI_SIGNING_PRIVATE_KEY_PASSWORD = ""
-    Remove-Item Env:\TAURI_SIGNING_PRIVATE_KEY -ErrorAction SilentlyContinue
-
     Write-Host "Signing: $installerPath"
     Push-Location $repositoryRoot
     try {
-        bun tauri signer sign $installerPath
+        # Explicit flags avoid a Windows shell hang seen when the same values are inherited only
+        # through environment variables. The key is unencrypted, so pass an explicit empty password.
+        bun tauri signer sign --private-key-path $keyPath --password= $installerPath
         if ($LASTEXITCODE -ne 0) {
             throw "tauri signer exited $LASTEXITCODE"
         }

@@ -1,10 +1,10 @@
 {
   "name": "rnd-data-processing",
   "private": true,
-  "version": "0.1.2",
+  "version": "0.1.3",
   "license": "MIT",
   "packageManager": "bun@1.3.14",
-  "description": "Offline System 208V accuracy report processing desktop app.",
+  "description": "Offline System 208V and System 415V accuracy report processing desktop app.",
   "author": "Syed Hassaan Shah",
   "type": "module",
   "scripts": {

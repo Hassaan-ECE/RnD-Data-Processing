@@ -88,8 +88,10 @@ pub fn load_setup_targets(
         format!(" Details: {}", failure_details.join("; "))
     };
     Err(AppError::Message(format!(
-        "Could not read {expected_count} System 208V load targets from '{}'. Expected Sheet1 rows {}-{} or a '{}' header.{details}",
+        "Could not read {expected_count} {} load targets from '{}'. Expected {} rows {}-{} or a '{}' header.{details}",
+        test.title,
         setup_path.display(),
+        setup.preferred_sheet,
         setup.row_start,
         setup.row_end,
         setup.header_text
@@ -116,7 +118,8 @@ fn targets_from_fixed_rows(
         let target_amps =
             cell_number(range.get((row_index, setup.target_amp_column))).ok_or_else(|| {
                 AppError::Message(format!(
-                    "Setup row {row_number} has no numeric System_208 target"
+                    "Setup row {row_number} has no numeric '{}' target",
+                    setup.header_text
                 ))
             })?;
         targets.push(LoadTarget {

@@ -27,6 +27,20 @@ fn embedded_config_has_required_channel_mapping() {
     assert_eq!(config.auto_groups["sigmb_456"].total, "SIGMB");
     assert_eq!(config.auto_groups["sigma_123"].phases, ["1", "2", "3"]);
     assert_eq!(config.auto_groups["sigma_123"].total, "SIGMA");
+
+    let system_415 = config
+        .test("system_415v")
+        .expect("System 415V should be registered");
+    assert!(system_415.ready);
+    assert_eq!(
+        system_415.output_subfolder.as_deref(),
+        Some("System_415V_Accuracy_Reports")
+    );
+    assert_eq!(
+        system_415.segmentation_auto_group.as_deref(),
+        Some("sigmb_456")
+    );
+    assert_eq!(system_415.meters.len(), 2);
 }
 
 #[test]

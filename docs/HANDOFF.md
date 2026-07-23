@@ -1,10 +1,11 @@
-# RnD Data Processing v0.1.2 Handoff
+# RnD Data Processing v0.1.3 Handoff
 
 ## Release status
 
-- Product: `Data Processing` / package version `0.1.2`.
+- Product: `Data Processing` / package version `0.1.3`.
 - Repository: `https://github.com/Hassaan-ECE/RnD-Data-Processing.git` on `main`.
-- Target release: `v0.1.2` — review-verified maths, preview identity, signed-build safety, and documentation sync after `v0.1.1`.
+- Target release: `v0.1.3` — System 415V processing plus per-measurement-group workbook gradient settings.
+- Release scope: dedicated gradient settings page, per-system saved values, copy/paste between voltage systems, and unchanged Error % / phase defaults.
 
 ## Run from PowerShell
 
@@ -14,31 +15,33 @@ bun install
 bun run desktop
 ```
 
-`bun run desktop` uses the repository-local Tauri CLI and opens one responsive window titled `Data Processing v0.1.2`. A global `cargo-tauri` installation is not required.
+`bun run desktop` uses the repository-local Tauri CLI and opens one responsive window titled `Data Processing v0.1.3`. A global `cargo-tauri` installation is not required.
 
 ## Generate a report
 
 1. Choose the setup workbook on the Hub.
-2. Open `System 208V`.
+2. Open `System 208V` or `System 415V`.
 3. Choose the folder containing the Acuvim Real-Time files and exactly one `Auto_*.CSV`.
 4. Keep the default ±5% tolerance or edit it.
 5. Choose the averaging method:
    - Standard trim: skip 2 rows from the start and 2 from the end by default.
    - Fixed window: skip 2 rows from the end and take up to 20 preceding points by default.
-6. Generate reports and open the reports or output folder from the result actions.
+6. Open `Gradients Setting` to adjust and save each measurement group's Error % or phase Δ green/yellow/red stops. Valid order is `0 ≤ green < yellow < red`.
+7. Generate reports and open the reports or output folder from the result actions.
 
-The default output is `<data folder>\System_208V_Accuracy_Reports`.
+Default outputs are `<data folder>\System_208V_Accuracy_Reports` and `<data folder>\System_415V_Accuracy_Reports`.
 
 Equivalent CLI command:
 
 ```powershell
 bun run pipeline -- --setup "C:\Path\To\Setup.xlsx" --data "C:\Path\To\Data" --tolerance 5
+bun run pipeline -- --test system_415v --setup "C:\Path\To\Setup.xlsx" --data "C:\Path\To\415V-Data" --tolerance 5
 ```
 
 ## Implemented
 
-- React/Vite frontend with a Tauri 2/Rust backend and synchronized `0.1.2` versions.
-- Single-window Hub → System 208V → Back navigation.
+- React/Vite frontend with a Tauri 2/Rust backend and synchronized `0.1.3` versions.
+- Single-window Hub → System 208V / System 415V → Back navigation.
 - Shared setup picker, data discovery, live load-range preview, ± tolerance, trim/window controls, output selection, report actions, and updater UI.
 - Config-driven exact mapping:
   - IIR / Meter 10 → Auto 4/5/6 + SIGMB.
@@ -49,7 +52,8 @@ bun run pipeline -- --setup "C:\Path\To\Setup.xlsx" --data "C:\Path\To\Data" --t
 - Circular band means for phase tables and wrapped circular phase deltas.
 - Error % fixed as `(meter - auto) / auto * 100`, including negative Auto references; near-zero Auto remains `N/A`.
 - Auto total THD reported as the arithmetic mean of the three phase THD percentages, explicitly treated as a reporting convention.
-- Continuous green/yellow/red magnitude gradients for Error % and phase delta cells.
+- User-adjustable green/yellow/red magnitude gradients per measurement group, with validated ordered stops and unchanged legacy defaults. `IN(A)` shares the Current range; voltage/current unbalance, voltage/current THD, and voltage/current phase groups remain independent.
+- Dedicated single-window gradient settings page with grouped editing, per-system local saves, reset, and copy/paste between System 208V and System 415V.
 - Core workbook sheets with exact names: `Meter Detail`, `WM Detail`, `Comparison`.
 - Optional companion triplets:
   - `THD Meter Detail`, `THD WM Detail`, `THD Comparison`.
@@ -67,8 +71,9 @@ bun run pipeline -- --setup "C:\Path\To\Setup.xlsx" --data "C:\Path\To\Data" --t
 - Q triangle fallback is magnitude-only because sign cannot be recovered when the instrument Q field is missing.
 - Auto total THD is not claimed to be a physically combined waveform THD.
 - Preview cards are retained only for same-source parameter refreshes. Changing setup or data identity clears old cards immediately.
+- System 208V and System 415V use the same exact meter/Auto channel mappings; each test uses its own setup schedule and output naming.
 
-## Validation performed July 22, 2026
+## Validation performed July 23, 2026
 
 Run the full set before release-facing changes:
 
@@ -87,9 +92,11 @@ git diff --check
 Review evidence (pre-release working tree):
 
 - Maths, Q fallback, phase circular means, missing-voltage handling, Error %, and docs consistency: PASS.
-- Frontend preview-identity tests: PASS.
+- Frontend preview identity, gradient navigation, grouped editing, saving, copy/paste, and report payload tests: PASS.
 - Signed-build helper fail-closed against stale installers: PASS.
 - DOCX regeneration match: PASS.
+- Real System 208V capture `208VAC_25C_07212026`: 13 targets, 2 reports, no warnings — PASS.
+- Real System 415V capture `C:\test2\Data\415VAC_25C_07222026`: 13 targets, 2 reports, 9 sheets per report, no warnings — PASS.
 
 ## Installer and updater
 
@@ -113,12 +120,13 @@ S-drive team install root:
 
 - Root: current setup only.
 - `release-support\vX.Y.Z\`: per-version installer (and support files).
+- `Archive\vX.Y.Z\`: retired installers and updater support files.
 
 The updater endpoint is `https://github.com/Hassaan-ECE/RnD-Data-Processing/releases/latest/download/latest.json`.
 
 ## Known limitations
 
-1. Only System 208V is production-enabled; System 415V and both Sub-feed modes remain disabled.
+1. Both Sub-feed modes remain disabled.
 2. Optional THD and Phase sheets are omitted when their companion files are missing.
 3. Phase PF cannot be reconstructed from P/S; only total PF has that fallback.
 4. Q fallback cannot recover leading/lagging sign when the instrument Q cell is absent.

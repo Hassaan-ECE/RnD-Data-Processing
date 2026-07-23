@@ -45,6 +45,16 @@ fn validate_config(config: &AppConfig) -> AppResult<()> {
     }
 
     for test in config.registry.tests.iter().filter(|test| test.ready) {
+        if test
+            .output_subfolder
+            .as_deref()
+            .is_some_and(|folder| folder.trim().is_empty())
+        {
+            return Err(AppError::Message(format!(
+                "Ready test '{}' has an empty output subfolder",
+                test.id
+            )));
+        }
         let setup = test.setup.as_ref().ok_or_else(|| {
             AppError::Message(format!(
                 "Ready test '{}' is missing setup configuration",

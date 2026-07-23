@@ -38,6 +38,14 @@ pub async fn run_system_208v_report(input: PipelineInput) -> AppResult<PipelineR
         .map_err(|error| AppError::Message(format!("Report worker failed: {error}")))?
 }
 
+#[cfg(feature = "desktop")]
+#[tauri::command]
+pub async fn run_report(test_id: String, input: PipelineInput) -> AppResult<PipelineResult> {
+    tauri::async_runtime::spawn_blocking(move || pipeline::run_test(&test_id, input))
+        .await
+        .map_err(|error| AppError::Message(format!("Report worker failed: {error}")))?
+}
+
 #[cfg_attr(feature = "desktop", tauri::command)]
 pub fn preview_load_bands(input: PreviewInput) -> AppResult<BandPreviewResult> {
     preview::preview_load_bands(input)

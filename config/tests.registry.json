@@ -10,6 +10,7 @@
       "title": "System 208V",
       "description": "Compare System 208V Acuvim meters with one Yokogawa Auto capture.",
       "ready": true,
+      "outputSubfolder": "System_208V_Accuracy_Reports",
       "setup": {
         "preferredSheet": "Sheet1",
         "headerText": "System_208",
@@ -37,11 +38,32 @@
     {
       "id": "system_415v",
       "title": "System 415V",
-      "description": "Reserved for a future processing release.",
-      "ready": false,
-      "setup": null,
-      "segmentationAutoGroup": null,
-      "meters": []
+      "description": "Compare System 415V Acuvim meters with one Yokogawa Auto capture.",
+      "ready": true,
+      "outputSubfolder": "System_415V_Accuracy_Reports",
+      "setup": {
+        "preferredSheet": "Sheet1",
+        "headerText": "System_415",
+        "loadPercentColumn": 0,
+        "targetAmpColumn": 1,
+        "rowStart": 20,
+        "rowEnd": 32
+      },
+      "segmentationAutoGroup": "sigmb_456",
+      "meters": [
+        {
+          "id": "iir",
+          "label": "IIR / Meter 10",
+          "filePattern": "*IIR*Real-Time*.csv",
+          "autoGroup": "sigmb_456"
+        },
+        {
+          "id": "iiw",
+          "label": "IIW / Meter 9",
+          "filePattern": "*IIW*Real-Time*.csv",
+          "autoGroup": "sigma_123"
+        }
+      ]
     },
     {
       "id": "subfeed_208v",

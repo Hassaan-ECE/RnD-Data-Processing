@@ -1,16 +1,23 @@
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 
 import { HubPage } from "../features/hub/HubPage";
+import { cloneComparisonGradients } from "../features/processor/gradientConfig";
 import { ProcessorPage } from "../features/processor/ProcessorPage";
+import { processorTest, type ProcessorTestId } from "../features/processor/testCatalog";
 import { UpdateActionButton } from "../features/updates/UpdateActionButton";
 import { useDesktopUpdates } from "../features/updates/useDesktopUpdates";
-import { getAppVersion, isTauriRuntime } from "../integrations/tauri/backend";
+import {
+  getAppVersion,
+  isTauriRuntime,
+  type ComparisonGradientOptions,
+} from "../integrations/tauri/backend";
 import { ScrollRegion } from "../shared/ui/ScrollRegion";
 
 const SETUP_STORAGE_KEY = "rnd-data-processing.setup-path";
 
 export function App() {
-  const [page, setPage] = useState<"hub" | "system_208v">("hub");
+  const [activeTestId, setActiveTestId] = useState<ProcessorTestId | null>(null);
+  const [gradientClipboard, setGradientClipboard] = useState<ComparisonGradientOptions | null>(null);
   const [setupPath, setSetupPath] = useState(() => window.localStorage.getItem(SETUP_STORAGE_KEY) ?? "");
   const [announcement, setAnnouncement] = useState("Ready");
   const announce = useCallback((message: string) => setAnnouncement(message), []);
@@ -58,13 +65,13 @@ export function App() {
       <span className="sr-only" aria-live="polite">
         {announcement}
       </span>
-      <main className={`app-main ${page === "system_208v" ? "app-main-fill" : ""}`}>
-        {page === "hub" ? (
+      <main className={`app-main ${activeTestId ? "app-main-fill" : ""}`}>
+        {!activeTestId ? (
           <ScrollRegion className="app-scroll" aria-label="Application content">
             <HubPage
               setupPath={setupPath}
               onSetupPathChange={setSetupPath}
-              onOpenSystem208v={() => setPage("system_208v")}
+              onOpenTest={setActiveTestId}
               announce={announce}
               updateControl={updateControl}
             />
@@ -72,9 +79,15 @@ export function App() {
         ) : (
           // Processor owns two independent scroll panes (main + load-range rail).
           <ProcessorPage
+            key={activeTestId}
+            test={processorTest(activeTestId)}
             setupPath={setupPath}
             onSetupPathChange={setSetupPath}
-            onBack={() => setPage("hub")}
+            gradientClipboard={gradientClipboard}
+            onCopyGradients={(nextGradients) =>
+              setGradientClipboard(cloneComparisonGradients(nextGradients))
+            }
+            onBack={() => setActiveTestId(null)}
             announce={announce}
           />
         )}

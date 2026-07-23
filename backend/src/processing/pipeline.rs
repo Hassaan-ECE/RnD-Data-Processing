@@ -10,7 +10,7 @@ use crate::config::load_embedded_config;
 use crate::error::{AppError, AppResult};
 use crate::processing::compare::{build_meter_report_data, build_phase_section, build_thd_section};
 use crate::processing::discover::discover_data_folder;
-use crate::processing::excel_write::write_report_workbook;
+use crate::processing::excel_write::{write_report_workbook, ComparisonGradientOptions};
 use crate::processing::preprocess::{
     companion_csv_path, preprocess_acuvim, preprocess_acuvim_phase, preprocess_acuvim_thd,
     preprocess_auto_data, preprocess_auto_phase, preprocess_auto_thd, read_auto_csv,
@@ -29,6 +29,8 @@ pub struct PipelineInput {
     pub tolerance_percent: f64,
     #[serde(default)]
     pub reduce: ReduceOptions,
+    #[serde(default)]
+    pub gradients: ComparisonGradientOptions,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq)]
@@ -62,24 +64,32 @@ pub struct PipelineResult {
 }
 
 pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
+    run_test(SYSTEM_208V_TEST_ID, input)
+}
+
+pub fn run_test(test_id: &str, input: PipelineInput) -> AppResult<PipelineResult> {
     let started = Instant::now();
     let config = load_embedded_config()?;
-    let test = config.test(SYSTEM_208V_TEST_ID).ok_or_else(|| {
-        AppError::Message("System 208V is missing from the test registry".to_owned())
-    })?;
+    let test = config
+        .test(test_id)
+        .ok_or_else(|| AppError::Message(format!("Unknown test id '{test_id}'")))?;
     if !test.ready {
-        return Err(AppError::Message(
-            "System 208V is not enabled in the test registry".to_owned(),
-        ));
+        return Err(AppError::Message(format!(
+            "{} is not enabled in the test registry",
+            test.title
+        )));
     }
+    input.gradients.validate()?;
 
     let discovery = discover_data_folder(&input.data_folder, test)?;
     let setup = load_setup_targets(&input.setup_path, test)?;
-    let output_dir = input.output_dir.unwrap_or_else(|| {
-        input
-            .data_folder
-            .join(&config.registry.defaults.output_subfolder)
-    });
+    let output_subfolder = test
+        .output_subfolder
+        .as_deref()
+        .unwrap_or(&config.registry.defaults.output_subfolder);
+    let output_dir = input
+        .output_dir
+        .unwrap_or_else(|| input.data_folder.join(output_subfolder));
     if output_dir.exists() && !output_dir.is_dir() {
         return Err(AppError::Message(format!(
             "Output path exists but is not a directory: {}",
@@ -90,7 +100,7 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
 
     let raw_auto = read_auto_csv(&discovery.auto_path)?;
     let segmentation_group_id = test.segmentation_auto_group.as_deref().ok_or_else(|| {
-        AppError::Message("System 208V has no segmentation Auto group".to_owned())
+        AppError::Message(format!("{} has no segmentation Auto group", test.title))
     })?;
     let mut group_ids = BTreeSet::from([segmentation_group_id.to_owned()]);
     group_ids.extend(
@@ -128,6 +138,7 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
         &input.reduce,
     )?;
     let timestamp_match_seconds = config.registry.defaults.timestamp_match_seconds;
+    let report_prefix = filename_component(&test.title);
     let mut warnings = discovery.warnings;
     let reports = discovery
         .meters
@@ -205,10 +216,11 @@ pub fn run_system_208v(input: PipelineInput) -> AppResult<PipelineResult> {
                 }
 
                 let output_path = output_dir.join(format!(
-                    "System_208V_{}_Accuracy_Report.xlsx",
+                    "{}_{}_Accuracy_Report.xlsx",
+                    report_prefix,
                     filename_component(&meter.label)
                 ));
-                write_report_workbook(&output_path, &report)?;
+                write_report_workbook(&output_path, &report, &input.gradients)?;
                 Ok((output_path, local_warnings))
             })();
             match result {

@@ -1,11 +1,13 @@
 use std::env;
 use std::path::PathBuf;
 
-use rnd_data_processing_lib::processing::pipeline::{run_system_208v, PipelineInput, ReportStatus};
+use rnd_data_processing_lib::processing::excel_write::ComparisonGradientOptions;
+use rnd_data_processing_lib::processing::pipeline::{run_test, PipelineInput, ReportStatus};
 use rnd_data_processing_lib::processing::segment::{ReduceMode, ReduceOptions};
+use rnd_data_processing_lib::processing::SYSTEM_208V_TEST_ID;
 
 fn main() {
-    match parse_input().and_then(run_system_208v) {
+    match parse_input().and_then(|(test_id, input)| run_test(&test_id, input)) {
         Ok(result) => {
             println!(
                 "{}",
@@ -27,7 +29,8 @@ fn main() {
     }
 }
 
-fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppError> {
+fn parse_input() -> Result<(String, PipelineInput), rnd_data_processing_lib::error::AppError> {
+    let mut test_id = SYSTEM_208V_TEST_ID.to_owned();
     let mut setup_path = None;
     let mut data_folder = None;
     let mut output_dir = None;
@@ -36,6 +39,13 @@ fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppErr
     let mut arguments = env::args().skip(1).filter(|argument| argument != "--");
     while let Some(argument) = arguments.next() {
         match argument.as_str() {
+            "--test" => {
+                test_id = arguments.next().ok_or_else(|| {
+                    rnd_data_processing_lib::error::AppError::Message(
+                        "--test requires a registry test id".to_owned(),
+                    )
+                })?;
+            }
             "--setup" => setup_path = arguments.next().map(PathBuf::from),
             "--data" => data_folder = arguments.next().map(PathBuf::from),
             "--output" => output_dir = arguments.next().map(PathBuf::from),
@@ -88,21 +98,25 @@ fn parse_input() -> Result<PipelineInput, rnd_data_processing_lib::error::AppErr
         }
     }
 
-    Ok(PipelineInput {
-        setup_path: setup_path.ok_or_else(|| {
-            rnd_data_processing_lib::error::AppError::Message(
-                "Missing required --setup path".to_owned(),
-            )
-        })?,
-        data_folder: data_folder.ok_or_else(|| {
-            rnd_data_processing_lib::error::AppError::Message(
-                "Missing required --data path".to_owned(),
-            )
-        })?,
-        output_dir,
-        tolerance_percent,
-        reduce,
-    })
+    Ok((
+        test_id,
+        PipelineInput {
+            setup_path: setup_path.ok_or_else(|| {
+                rnd_data_processing_lib::error::AppError::Message(
+                    "Missing required --setup path".to_owned(),
+                )
+            })?,
+            data_folder: data_folder.ok_or_else(|| {
+                rnd_data_processing_lib::error::AppError::Message(
+                    "Missing required --data path".to_owned(),
+                )
+            })?,
+            output_dir,
+            tolerance_percent,
+            reduce,
+            gradients: ComparisonGradientOptions::default(),
+        },
+    ))
 }
 
 fn parse_usize(
@@ -123,6 +137,6 @@ fn parse_usize(
 
 fn print_usage() {
     eprintln!(
-        "Usage: rnd-pipeline --setup <schedule.xlsx> --data <folder> [--output <folder>] [--tolerance <percent>] [--mode trim|window] [--skip-start N] [--skip-end N] [--window-size N]"
+        "Usage: rnd-pipeline [--test system_208v|system_415v] --setup <schedule.xlsx> --data <folder> [--output <folder>] [--tolerance <percent>] [--mode trim|window] [--skip-start N] [--skip-end N] [--window-size N]"
     );
 }

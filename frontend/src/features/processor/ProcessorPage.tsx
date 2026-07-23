@@ -19,26 +19,42 @@ import {
   loadSetupFile,
   openPath,
   previewLoadBands,
-  runSystem208vReport,
+  runReport,
   scanDataFolder,
   type BandPreviewResult,
+  type ComparisonGradientOptions,
   type DiscoveryResult,
   type PipelineResult,
   type SetupLoadResult,
 } from "../../integrations/tauri/backend";
 import { ScrollRegion } from "../../shared/ui/ScrollRegion";
+import { ComparisonGradientsPage } from "./ComparisonGradientsPage";
+import {
+  cloneComparisonGradients,
+  comparisonGradientsEqual,
+  comparisonGradientsValid,
+  createDefaultComparisonGradients,
+} from "./gradientConfig";
+import { loadSavedComparisonGradients, saveComparisonGradients } from "./gradientStorage";
 import { LoadRangeSidebar } from "./LoadRangeSidebar";
+import type { ProcessorTest } from "./testCatalog";
 
 interface ProcessorPageProps {
+  test: ProcessorTest;
   setupPath: string;
   onSetupPathChange: (path: string) => void;
+  gradientClipboard: ComparisonGradientOptions | null;
+  onCopyGradients: (gradients: ComparisonGradientOptions) => void;
   onBack: () => void;
   announce: (message: string) => void;
 }
 
 export function ProcessorPage({
+  test,
   setupPath,
   onSetupPathChange,
+  gradientClipboard,
+  onCopyGradients,
   onBack,
   announce,
 }: ProcessorPageProps) {
@@ -50,6 +66,13 @@ export function ProcessorPage({
   const [skipStart, setSkipStart] = useState(2);
   const [skipEnd, setSkipEnd] = useState(2);
   const [windowSize, setWindowSize] = useState(20);
+  const [savedGradients, setSavedGradients] = useState<ComparisonGradientOptions>(() =>
+    loadSavedComparisonGradients(test.id),
+  );
+  const [gradients, setGradients] = useState<ComparisonGradientOptions>(() =>
+    cloneComparisonGradients(savedGradients),
+  );
+  const [activeView, setActiveView] = useState<"processor" | "gradients">("processor");
   /** Empty = use default under data folder; set only when user picks a custom output. */
   const [customOutput, setCustomOutput] = useState("");
   const [result, setResult] = useState<PipelineResult | null>(null);
@@ -99,14 +122,13 @@ export function ProcessorPage({
     }),
     [reduceMode, skipStart, skipEnd, windowSize],
   );
-
   useEffect(() => {
     if (!setupPath || !isTauriRuntime()) {
       setSetupSummary(null);
       return;
     }
     let active = true;
-    loadSetupFile(setupPath)
+    loadSetupFile(setupPath, test.id)
       .then((summary) => {
         if (active) {
           setSetupSummary(summary);
@@ -122,7 +144,7 @@ export function ProcessorPage({
     return () => {
       active = false;
     };
-  }, [setupPath]);
+  }, [setupPath, test.id]);
 
   // Live load-range rail: re-run light preview when setup/data/tolerance/method change.
   // Keep the previous preview only while refreshing the *same* setup+data identity
@@ -136,7 +158,7 @@ export function ProcessorPage({
       previewSourceIdentityRef.current = null;
       return;
     }
-    const sourceIdentity = `${setupPath}\0${dataFolder || ""}`;
+    const sourceIdentity = `${test.id}\0${setupPath}\0${dataFolder || ""}`;
     if (previewSourceIdentityRef.current !== sourceIdentity) {
       setPreview(null);
       previewSourceIdentityRef.current = null;
@@ -150,6 +172,7 @@ export function ProcessorPage({
         dataFolder: dataFolder || null,
         tolerancePercent: tolerance,
         reduce: reduceOptions,
+        testId: test.id,
       })
         .then((next) => {
           if (active) {
@@ -176,11 +199,11 @@ export function ProcessorPage({
       active = false;
       window.clearTimeout(handle);
     };
-  }, [setupPath, dataFolder, tolerance, reduceOptions]);
+  }, [setupPath, dataFolder, tolerance, reduceOptions, test.id]);
 
   const defaultOutput = useMemo(
-    () => (dataFolder ? `${dataFolder}\\System_208V_Accuracy_Reports` : ""),
-    [dataFolder],
+    () => (dataFolder ? `${dataFolder}\\${test.outputSubfolder}` : ""),
+    [dataFolder, test.outputSubfolder],
   );
   const outputPath = customOutput || defaultOutput;
   const successfulReports =
@@ -189,8 +212,17 @@ export function ProcessorPage({
     reduceMode === "trim"
       ? skipStart >= 0 && skipEnd >= 0
       : windowSize >= 1 && skipEnd >= 0;
+  const gradientsValid = comparisonGradientsValid(gradients);
+  const gradientsDirty = !comparisonGradientsEqual(gradients, savedGradients);
   const canGenerate = Boolean(
-    setupPath && setupSummary && dataFolder && discovery && tolerance > 0 && reduceValid && !busy,
+    setupPath &&
+      setupSummary &&
+      dataFolder &&
+      discovery &&
+      tolerance > 0 &&
+      reduceValid &&
+      gradientsValid &&
+      !busy,
   );
 
   const selectSetup = async () => {
@@ -206,7 +238,7 @@ export function ProcessorPage({
   };
 
   const selectDataFolder = async () => {
-    const selected = await chooseDataFolder();
+    const selected = await chooseDataFolder(test.title);
     if (!selected) {
       if (!isTauriRuntime()) {
         announce("Use the installed desktop app to select a data folder.");
@@ -217,7 +249,7 @@ export function ProcessorPage({
     setError("");
     setResult(null);
     try {
-      const scanned = await scanDataFolder(selected);
+      const scanned = await scanDataFolder(selected, test.id);
       setDataFolder(selected);
       setDiscovery(scanned);
       announce(
@@ -247,12 +279,13 @@ export function ProcessorPage({
     setError("");
     setResult(null);
     try {
-      const pipelineResult = await runSystem208vReport({
+      const pipelineResult = await runReport(test.id, {
         dataFolder,
         setupPath,
         outputDir: customOutput || null,
         tolerancePercent: tolerance,
         reduce: reduceOptions,
+        gradients,
       });
       setResult(pipelineResult);
       const message = `${pipelineResult.successCount} report${pipelineResult.successCount === 1 ? "" : "s"} generated`;
@@ -278,6 +311,49 @@ export function ProcessorPage({
     }
   };
 
+  if (activeView === "gradients") {
+    return (
+      <ComparisonGradientsPage
+        testTitle={test.title}
+        gradients={gradients}
+        gradientsValid={gradientsValid}
+        onChange={(key, stops) => setGradients((current) => ({ ...current, [key]: stops }))}
+        canPaste={gradientClipboard !== null}
+        onCopy={() => {
+          onCopyGradients(gradients);
+          announce(`${test.title} gradient values copied.`);
+        }}
+        onPaste={() => {
+          if (!gradientClipboard) {
+            return;
+          }
+          setGradients(cloneComparisonGradients(gradientClipboard));
+          announce(`Copied gradient values pasted into ${test.title}.`);
+        }}
+        onSave={() => {
+          const saved = saveComparisonGradients(test.id, gradients);
+          if (saved) {
+            setSavedGradients(cloneComparisonGradients(gradients));
+          }
+          announce(
+            saved
+              ? `${test.title} gradient settings saved.`
+              : `${test.title} gradient settings could not be saved.`,
+          );
+          return saved;
+        }}
+        hasUnsavedChanges={gradientsDirty}
+        onDiscardChanges={() => {
+          setGradients(cloneComparisonGradients(savedGradients));
+          setActiveView("processor");
+          announce(`Unsaved ${test.title} gradient changes discarded.`);
+        }}
+        onReset={() => setGradients(createDefaultComparisonGradients())}
+        onBack={() => setActiveView("processor")}
+      />
+    );
+  }
+
   return (
     <div className="processor-page">
       <div className="processor-heading">
@@ -286,7 +362,7 @@ export function ProcessorPage({
             <ArrowLeft /> Back
           </button>
         </div>
-        <h1>System 208V</h1>
+        <h1>{test.title}</h1>
         <div className="heading-side heading-side-end">
           <button
             className={sidebarCollapsed ? "sidebar-toggle-button" : "sidebar-icon-button"}
@@ -313,7 +389,11 @@ export function ProcessorPage({
       ) : null}
 
       <div className="processor-layout">
-        <ScrollRegion className="processor-main-scroll" contentClassName="processor-main" aria-label="System 208V controls">
+        <ScrollRegion
+          className="processor-main-scroll"
+          contentClassName="processor-main"
+          aria-label={`${test.title} controls`}
+        >
           <section className="panel" aria-label="Inputs">
             <PathRow
               label="Setup File"
@@ -343,7 +423,8 @@ export function ProcessorPage({
             />
           </section>
 
-          <section className="panel average-method-panel" aria-label="Average method">
+          <div className="method-settings-grid">
+            <section className="panel average-method-panel" aria-label="Average method">
             <div className="segmented-control" role="radiogroup" aria-label="Average method">
               <button
                 type="button"
@@ -399,6 +480,15 @@ export function ProcessorPage({
               />
             </div>
           </section>
+
+            <button
+              className="secondary-button gradient-settings-button"
+              type="button"
+              onClick={() => setActiveView("gradients")}
+            >
+              Gradients Setting
+            </button>
+          </div>
 
           <section className="panel action-stack" aria-label="Run">
             <button className="primary-button" type="button" disabled={!canGenerate} onClick={generate}>

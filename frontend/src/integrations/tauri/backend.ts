@@ -37,12 +37,36 @@ export interface ReduceOptions {
   windowSize: number;
 }
 
+export interface GradientStops {
+  green: number;
+  yellow: number;
+  red: number;
+}
+
+export interface ComparisonGradientOptions {
+  lineNeutralVoltage: GradientStops;
+  lineLineVoltage: GradientStops;
+  current: GradientStops;
+  activePower: GradientStops;
+  reactivePower: GradientStops;
+  apparentPower: GradientStops;
+  powerFactor: GradientStops;
+  frequency: GradientStops;
+  voltageUnbalance: GradientStops;
+  currentUnbalance: GradientStops;
+  voltageThd: GradientStops;
+  currentThd: GradientStops;
+  voltagePhaseAngle: GradientStops;
+  currentPhaseAngle: GradientStops;
+}
+
 export interface PipelineInput {
   dataFolder: string;
   setupPath: string;
   outputDir: string | null;
   tolerancePercent: number;
   reduce: ReduceOptions;
+  gradients: ComparisonGradientOptions;
 }
 
 export interface ReportOutcome {
@@ -88,14 +112,14 @@ export async function chooseSetupFile(): Promise<string | null> {
   return typeof selection === "string" ? selection : null;
 }
 
-export async function chooseDataFolder(): Promise<string | null> {
+export async function chooseDataFolder(testTitle = "System 208V"): Promise<string | null> {
   if (!isTauriRuntime()) {
     return null;
   }
   const selection = await open({
     directory: true,
     multiple: false,
-    title: "Select System 208V data folder",
+    title: `Select ${testTitle} data folder`,
   });
   return typeof selection === "string" ? selection : null;
 }
@@ -126,8 +150,8 @@ export async function scanDataFolder(
   return invoke<DiscoveryResult>("scan_data_folder", { dataFolder, testId });
 }
 
-export async function runSystem208vReport(input: PipelineInput): Promise<PipelineResult> {
-  return invoke<PipelineResult>("run_system_208v_report", { input });
+export async function runReport(testId: string, input: PipelineInput): Promise<PipelineResult> {
+  return invoke<PipelineResult>("run_report", { testId, input });
 }
 
 export type BandHealth = "ok" | "short" | "empty";

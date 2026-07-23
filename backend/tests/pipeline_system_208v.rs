@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use calamine::{open_workbook_auto, DataType, Reader};
+use rnd_data_processing_lib::processing::excel_write::ComparisonGradientOptions;
 use rnd_data_processing_lib::processing::pipeline::{run_system_208v, PipelineInput, ReportStatus};
 use rnd_data_processing_lib::processing::setup::load_targets_from_json;
 use rust_xlsxwriter::Workbook;
@@ -69,6 +70,7 @@ fn full_pipeline_writes_and_reopens_two_reports_twice() {
             skip_end: 0,
             ..Default::default()
         },
+        gradients: ComparisonGradientOptions::default(),
     };
 
     for _ in 0..2 {

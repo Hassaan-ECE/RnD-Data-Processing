@@ -1,19 +1,20 @@
 # RnD Data Processing
 
-Shippable Windows desktop v0.1.2 for offline System 208V accuracy processing. The app compares Acuvim Real-Time meter captures with one calibrated Yokogawa Auto CSV and writes one Excel report per detected meter.
+Windows desktop v0.1.3 for offline System 208V and System 415V accuracy processing with adjustable per-section workbook comparison gradients.
 
 Repository: https://github.com/Hassaan-ECE/RnD-Data-Processing
 
-## Included in v0.1.2
+## Current capabilities
 
-- One Tauri OS window with an in-app Hub and System 208V processor page.
+- One Tauri OS window with an in-app Hub and enabled System 208V / System 415V processor pages.
 - Setup workbook, data folder, tolerance, and default/custom output selection.
 - Exact mappings: IIR / Meter 10 → Auto 4/5/6 + SIGMB; IIW / Meter 9 → Auto 1/2/3 + SIGMA.
 - RAM-only offline CSV preprocessing; no database, persistence layer, watcher, or realtime service.
 - Parallel Auto transforms and per-meter report processing where independent.
 - One workbook per meter with core `Meter Detail`, `WM Detail`, and `Comparison` sheets.
 - When present next to each Real-Time file, companion `*.THD.csv` and `*.PhaseAngle.csv` add exact THD and Phase meter/WM/comparison sheet triplets vs Yokogawa `Uthd`/`Ithd`/`Phi`.
-- Live load-range preview, configurable standard-trim/fixed-window averaging, collapsible/resizable sidebar, and continuous comparison gradients.
+- Live load-range preview, configurable standard-trim/fixed-window averaging, collapsible/resizable sidebar, and a dedicated settings page with independent green-yellow-red gradients for each measurement group.
+- Per-system gradient settings can be saved locally and copied between the System 208V and System 415V processors.
 - Open report(s), open output folder, current-user NSIS packaging, and a published signed updater flow.
 
 ## Prerequisites
@@ -33,33 +34,37 @@ bun run desktop
 
 `bun run desktop` uses the repository-local `@tauri-apps/cli` installed by Bun, starts Vite, compiles the Rust/Tauri backend with its `desktop` feature, and opens one `RnD Data Processing` window. A global `cargo-tauri` installation is not required.
 
-## Generate a System 208V report
+## Generate a System report
 
 1. On the Hub, choose the setup `.xlsx` workbook.
-2. Open the enabled `System 208V` card.
+2. Open the enabled `System 208V` or `System 415V` card.
 3. Choose the folder containing the Acuvim Real-Time CSVs and exactly one Auto CSV. Optional same-timestamp `*.THD.csv` / `*.PhaseAngle.csv` companions are included when present.
 4. Leave tolerance at the default `5%` or enter another value greater than 0 and no more than 100.
-5. Keep the default output or choose a custom folder.
-6. Select `Generate reports`, then use `Open report(s)` or `Open output folder`.
+5. Open `Gradients Setting` to adjust, save, copy, or paste measurement-group color ranges. Main and THD groups use absolute Error %; phase groups use absolute Δ degrees. Each group must satisfy `0 ≤ green < yellow < red`.
+6. Keep the default output or choose a custom folder.
+7. Select `Generate reports`, then use `Open report(s)` or `Open output folder`.
 
 Sample paths used for v0.1 validation:
 
 ```text
 Setup: C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\PDU500-Load_ for testing.xlsx
-Data:  C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026
-Output:C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026\System_208V_Accuracy_Reports
+208:   C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026
+415:   C:\test2\Data\415VAC_25C_07222026
 ```
 
-The setup parser prefers `Sheet1` column A/B rows 4–16 and can fall back to a sheet containing a `System_208` header. The default output is `<data_folder>\System_208V_Accuracy_Reports\`.
+The setup parser uses `Sheet1` column A/B rows 4–16 for `System_208` and rows 20–32 for `System_415`, with header-based fallback. Default outputs are `<data_folder>\System_208V_Accuracy_Reports\` and `<data_folder>\System_415V_Accuracy_Reports\`.
+
+Gradient ranges are configured independently for line-neutral voltage (`UA/UB/UC/ULN`), line-line voltage (`UAB/UBC/UCA/ULL`), current (`IA/IB/IC/I/IN`), active/reactive/apparent power, power factor, frequency, voltage unbalance, current unbalance, voltage THD, current THD, voltage phase angles, and current phase displacement.
 
 ## Run the pipeline without the UI
 
 ```powershell
 cd "C:\Projects\Active\RnD Data Processing"
 bun run pipeline -- --setup "C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\PDU500-Load_ for testing.xlsx" --data "C:\Projects\Active\Feroz_Python_Data_Analysis\Accuracy Report Generator\Data\208VAC_25C_07212026" --tolerance 5
+bun run pipeline -- --test system_415v --setup "C:\test2\Data\PDU500-Load_ for testing.xlsx" --data "C:\test2\Data\415VAC_25C_07222026" --tolerance 5
 ```
 
-Add `--output "C:\Path\To\Reports"` for a custom output directory.
+The CLI defaults to `system_208v`; use `--test system_415v` for 415V. Add `--output "C:\Path\To\Reports"` for a custom output directory. Gradient controls currently come from the desktop UI; CLI runs use the established defaults.
 
 ## Processing rules
 
@@ -71,6 +76,7 @@ Add `--output "C:\Path\To\Reports"` for a custom output directory.
 - Phase tables use circular means. Missing phase voltages clear the corresponding current displacement instead of retaining a mislabeled raw angle.
 - Auto total THD is the arithmetic mean of the three phase THD percentages as a reporting convention, not a physically combined waveform THD.
 - Error % is `(meter - auto) / auto * 100`. Near-zero Auto denominators are written as `N/A`, never a fabricated zero.
+- Workbook color fills use absolute magnitude and user-adjustable green/yellow/red stops. Defaults remain Error % `0 / 0.5 / 1.0` and phase Δ `0 / 1.5 / 3.0`.
 - Missing Auto files, missing meters, malformed numbers, incomplete setup schedules, empty bands, and invalid output paths return explicit errors.
 
 ## Validate the project

@@ -9,7 +9,7 @@ const backend = vi.hoisted(() => ({
   loadSetupFile: vi.fn(),
   openPath: vi.fn(),
   previewLoadBands: vi.fn(),
-  runSystem208vReport: vi.fn(),
+  runReport: vi.fn(),
   scanDataFolder: vi.fn(),
 }));
 
@@ -24,6 +24,7 @@ vi.mock("@tauri-apps/plugin-updater", () => ({ check: updater.check }));
 vi.mock("@tauri-apps/plugin-process", () => ({ relaunch: vi.fn() }));
 
 import { App } from "../src/app/App";
+import { createDefaultComparisonGradients } from "../src/features/processor/gradientConfig";
 
 const setupPath = "C:\\Lab\\PDU500-Load_ for testing.xlsx";
 const dataFolder = "C:\\Lab\\208VAC_25C_07212026";
@@ -64,7 +65,7 @@ describe("RnD Data Processing UI", () => {
         { id: "iiw", label: "IIW / Meter 9", path: `${dataFolder}\\IIW.csv`, fileName: "Acuvim IIW.Real-Time.csv", autoGroupId: "sigma_123" },
       ],
     });
-    backend.runSystem208vReport.mockResolvedValue({
+    backend.runReport.mockResolvedValue({
       outputDir: outputFolder,
       reports: [
         { meterId: "iir", meterLabel: "IIR / Meter 10", status: "success", reportPath: `${outputFolder}\\IIR.xlsx`, error: null },
@@ -87,7 +88,7 @@ describe("RnD Data Processing UI", () => {
     // No newer release in tests — update CTA stays hidden until check finds one.
     expect(screen.queryByRole("button", { name: "Update available" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "System 208V" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "System 415V" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "System 415V" })).toBeEnabled();
     expect(screen.getByRole("button", { name: "Sub-feed 208V" })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Sub-feed 415V" })).toBeDisabled();
 
@@ -119,18 +120,22 @@ describe("RnD Data Processing UI", () => {
       fireEvent.click(screen.getByRole("button", { name: "Generate reports" }));
     });
     expect(await screen.findByText("2 reports generated")).toBeInTheDocument();
-    expect(backend.runSystem208vReport).toHaveBeenCalledWith({
-      dataFolder,
-      setupPath,
-      outputDir: null,
-      tolerancePercent: 5,
-      reduce: {
-        mode: "trim",
-        skipStart: 2,
-        skipEnd: 2,
-        windowSize: 20,
+    expect(backend.runReport).toHaveBeenCalledWith(
+      "system_208v",
+      {
+        dataFolder,
+        setupPath,
+        outputDir: null,
+        tolerancePercent: 5,
+        reduce: {
+          mode: "trim",
+          skipStart: 2,
+          skipEnd: 2,
+          windowSize: 20,
+        },
+        gradients: createDefaultComparisonGradients(),
       },
-    });
+    );
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /Open report\(s\)/i }));
@@ -144,5 +149,45 @@ describe("RnD Data Processing UI", () => {
     fireEvent.click(screen.getByRole("button", { name: "Back" }));
     expect(await screen.findByText(setupPath)).toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Browse setup file" })).toBeEnabled());
+  });
+
+  it("opens the enabled System 415V processor", async () => {
+    render(<App />);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "System 415V" }));
+      await flushAsyncWork();
+    });
+    expect(screen.getByRole("heading", { name: "System 415V" })).toBeInTheDocument();
+    expect(screen.getByLabelText("System 415V controls")).toBeInTheDocument();
+  });
+
+  it("copies all gradient values from System 208V and pastes them into System 415V", async () => {
+    render(<App />);
+    await act(async () => {
+      await flushAsyncWork();
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "System 208V" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gradients Setting" }));
+
+    const lineNeutralRed = screen.getByLabelText("Line-neutral voltage red stop");
+    fireEvent.change(lineNeutralRed, { target: { value: "1.4" } });
+    fireEvent.blur(lineNeutralRed);
+    const phaseYellow = screen.getByLabelText("Voltage phase angles yellow stop");
+    fireEvent.change(phaseYellow, { target: { value: "2.4" } });
+    fireEvent.blur(phaseYellow);
+    fireEvent.click(screen.getByRole("button", { name: "Copy all gradient values" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Back to processor" }));
+    fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
+    fireEvent.click(screen.getByRole("button", { name: "Back" }));
+    fireEvent.click(screen.getByRole("button", { name: "System 415V" }));
+    fireEvent.click(screen.getByRole("button", { name: "Gradients Setting" }));
+
+    expect(screen.getByLabelText("Line-neutral voltage red stop")).toHaveValue("1");
+    expect(screen.getByLabelText("Voltage phase angles yellow stop")).toHaveValue("1.5");
+    fireEvent.click(screen.getByRole("button", { name: "Paste copied system gradient values" }));
+    expect(screen.getByLabelText("Line-neutral voltage red stop")).toHaveValue("1.4");
+    expect(screen.getByLabelText("Voltage phase angles yellow stop")).toHaveValue("2.4");
   });
 });

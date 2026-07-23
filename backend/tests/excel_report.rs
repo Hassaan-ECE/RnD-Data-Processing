@@ -5,7 +5,9 @@ use calamine::{open_workbook_auto, DataType, Reader};
 use rnd_data_processing_lib::config::load_embedded_config;
 use rnd_data_processing_lib::processing::compare::build_meter_report_data;
 use rnd_data_processing_lib::processing::discover::discover_data_folder;
-use rnd_data_processing_lib::processing::excel_write::write_report_workbook;
+use rnd_data_processing_lib::processing::excel_write::{
+    write_report_workbook, ComparisonGradientOptions,
+};
 use rnd_data_processing_lib::processing::preprocess::{preprocess_acuvim, preprocess_auto};
 use rnd_data_processing_lib::processing::segment::{segment_reference_bands, ReduceOptions};
 use rnd_data_processing_lib::processing::setup::load_targets_from_json;
@@ -71,7 +73,8 @@ fn workbook_reopens_with_exact_sheets_labels_and_na_cells() {
 
     let temp = tempdir().expect("tempdir should work");
     let output = temp.path().join("System_208V_IIW_Accuracy_Report.xlsx");
-    write_report_workbook(&output, &report).expect("workbook should write");
+    write_report_workbook(&output, &report, &ComparisonGradientOptions::default())
+        .expect("workbook should write");
     assert!(fs::metadata(&output).expect("workbook should exist").len() > 1000);
 
     let mut workbook = open_workbook_auto(&output).expect("workbook should reopen");

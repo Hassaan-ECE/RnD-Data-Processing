@@ -23,6 +23,7 @@ pub struct TestDefinition {
     pub title: String,
     pub description: String,
     pub ready: bool,
+    pub output_subfolder: Option<String>,
     pub setup: Option<SetupDefinition>,
     pub segmentation_auto_group: Option<String>,
     pub meters: Vec<MeterDefinition>,

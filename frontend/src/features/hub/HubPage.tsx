@@ -2,21 +2,22 @@ import { useEffect, useState, type ReactNode } from "react";
 import { FileSpreadsheet, MoreHorizontal } from "lucide-react";
 
 import { chooseSetupFile, isTauriRuntime, loadSetupFile } from "../../integrations/tauri/backend";
+import { PROCESSOR_TESTS, type ProcessorTestId } from "../processor/testCatalog";
 
 interface HubPageProps {
   setupPath: string;
   onSetupPathChange: (path: string) => void;
-  onOpenSystem208v: () => void;
+  onOpenTest: (testId: ProcessorTestId) => void;
   announce: (message: string) => void;
   updateControl: ReactNode;
 }
 
-const comingSoonTests = ["System 415V", "Sub-feed 208V", "Sub-feed 415V"];
+const comingSoonTests = ["Sub-feed 208V", "Sub-feed 415V"];
 
 export function HubPage({
   setupPath,
   onSetupPathChange,
-  onOpenSystem208v,
+  onOpenTest,
   announce,
   updateControl,
 }: HubPageProps) {
@@ -105,9 +106,16 @@ export function HubPage({
       </section>
 
       <section className="test-grid" aria-label="Available tests">
-        <button className="test-tile ready" type="button" onClick={onOpenSystem208v}>
-          System 208V
-        </button>
+        {PROCESSOR_TESTS.map((test) => (
+          <button
+            className="test-tile ready"
+            type="button"
+            onClick={() => onOpenTest(test.id)}
+            key={test.id}
+          >
+            {test.title}
+          </button>
+        ))}
 
         {comingSoonTests.map((title) => (
           <button className="test-tile disabled" type="button" disabled key={title}>
